@@ -5,7 +5,7 @@
   const logEl = $("log");
   let lastWorkbook = null;
 
-  // 模型预设（移植自 portfolio/scripts/call_llm.py）
+  // 模型预设
   const MODEL_PRESETS = {
     glm52: { name: "NVIDIA GLM-5.2（视觉·推荐）",
       baseUrl: "https://integrate.api.nvidia.com/v1", model: "z-ai/glm-5.2",
@@ -13,18 +13,9 @@
     qw397: { name: "NVIDIA Qwen 3.5-397B VLM（视觉·推荐）",
       baseUrl: "https://integrate.api.nvidia.com/v1", model: "qwen/qwen3.5-397b-a17b",
       keyLabel: "NVIDIA_API_KEY" },
-    qw122: { name: "NVIDIA Qwen 3.5-122B VLM（视觉）",
-      baseUrl: "https://integrate.api.nvidia.com/v1", model: "qwen/qwen3.5-122b-a10b",
-      keyLabel: "NVIDIA_API_KEY" },
-    dsv4: { name: "商汤 DeepSeek-V4-Flash（视觉·可选）",
-      baseUrl: "https://token.sensenova.cn/v1", model: "deepseek-v4-flash",
-      keyLabel: "SENSENOVA_API_KEY" },
-    sfds: { name: "硅基流动 DeepSeek-V4-Flash（视觉·可选）",
+    sfds: { name: "硅基流动 DeepSeek-V4-Flash（视觉）",
       baseUrl: "https://api.siliconflow.cn/v1", model: "deepseek-ai/DeepSeek-V4-Flash",
       keyLabel: "SILICONFLOW_API_KEY" },
-    nemo: { name: "NVIDIA Nemotron-3-Ultra-550B（文本兜底）",
-      baseUrl: "https://integrate.api.nvidia.com/v1", model: "nvidia/nemotron-3-ultra-550b-a55b",
-      keyLabel: "NVIDIA_API_KEY" },
   };
 
   function log(msg) { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
