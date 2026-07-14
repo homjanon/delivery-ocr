@@ -4,6 +4,7 @@
   const status = $("status");
   const logEl = $("log");
   let lastWorkbook = null;
+  let _baseUrl = "", _model = "";
 
   // 模型预设
   const MODEL_PRESETS = {
@@ -21,20 +22,20 @@
   function log(msg) { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
   function setStatus(msg) { status.textContent = msg; }
 
-  // 应用预设：填充 baseUrl / model / key 标签
+  // 应用预设：记录 baseUrl / model / 更新 API Key 标签
   function applyPreset(presetKey, save = true) {
     const preset = MODEL_PRESETS[presetKey];
-    const baseUrl = $("baseUrl"), model = $("model"), keyLabel = $("apiKeyLabel");
+    const keyLabel = $("apiKeyLabel");
     if (preset) {
-      baseUrl.value = preset.baseUrl;
-      model.value = preset.model;
+      _baseUrl = preset.baseUrl;
+      _model = preset.model;
       keyLabel.textContent = "API Key（" + preset.keyLabel + "，本地持久化，填一次永久记住）";
       $("apiKey").placeholder = preset.keyLabel;
     }
     if (save) {
       localStorage.setItem("do_preset", presetKey);
-      localStorage.setItem("do_baseUrl", baseUrl.value);
-      localStorage.setItem("do_model", model.value);
+      localStorage.setItem("do_baseUrl", _baseUrl);
+      localStorage.setItem("do_model", _model);
     }
   }
 
@@ -43,24 +44,21 @@
 
   // 恢复设置（预设优先）
   const savedPreset = localStorage.getItem("do_preset");
+  const savedBaseUrl = localStorage.getItem("do_baseUrl");
+  const savedModel = localStorage.getItem("do_model");
   if (savedPreset && MODEL_PRESETS[savedPreset]) {
     $("preset").value = savedPreset;
     applyPreset(savedPreset, false);
   } else {
-    // 默认 GLM-5.2
     $("preset").value = "glm52";
     applyPreset("glm52", false);
   }
-  // 非预设字段：公司名 + API Key 仍恢复
+  // 若有保存的 baseUrl/model（兼容旧版），覆盖预设
+  if (savedBaseUrl && savedPreset === "custom") { _baseUrl = savedBaseUrl; }
+  if (savedModel && savedPreset === "custom") { _model = savedModel; }
+  // 公司名 + API Key
   $("company").value = localStorage.getItem("do_company") || "";
   $("apiKey").value = localStorage.getItem("do_apiKey") || "";
-
-  // 如果用户手动改了 baseUrl/model，自动切到「自定义」
-  [$("baseUrl"), $("model")].forEach(el => {
-    el.addEventListener("input", () => {
-      if ($("preset").value !== "custom") $("preset").value = "custom";
-    });
-  });
 
   // ——— 图片压缩 ———
   function compressImage(file, maxDim = 2000, quality = 0.85) {
@@ -107,9 +105,9 @@
 
   // ——— 主流程：识别 ———
   $("runBtn").addEventListener("click", async () => {
-    const baseUrl = $("baseUrl").value.trim().replace(/\/$/, "");
+    const baseUrl = _baseUrl.replace(/\/$/, "");
     const apiKey = $("apiKey").value.trim();
-    const model = $("model").value.trim();
+    const model = _model.trim();
     const company = $("company").value.trim();
     const files = [...$("fileInput").files];
 
