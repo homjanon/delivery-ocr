@@ -1,14 +1,13 @@
-// Excel 生成：台头公司 + 固定表头 + 数据 + 合计
+// Excel 生成：固定表头（含台头公司名称）+ 数据 + 合计
 const EXCEL_HEADERS = [
   "单据编号", "日期", "客户/收货单位", "名称及规格", "规格型号/颜色",
-  "数量", "单位", "单价", "金额", "备注"
+  "数量", "单位", "单价", "金额", "备注", "台头公司名称"
 ];
 
-function buildWorkbook(company, rows) {
+function buildWorkbook(rows) {
   const XLSX = window.XLSX;
   const aoa = [];
-  aoa.push([company || ""]);        // 第 1 行：台头公司名称
-  aoa.push(EXCEL_HEADERS.slice());  // 第 2 行：表头
+  aoa.push(EXCEL_HEADERS.slice());  // 第 1 行：表头
 
   rows.forEach(r => {
     aoa.push(EXCEL_HEADERS.map(h => {
@@ -30,13 +29,9 @@ function buildWorkbook(company, rows) {
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws["!cols"] = EXCEL_HEADERS.map(() => ({ wch: 16 }));
-  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: EXCEL_HEADERS.length - 1 } }];
-  if (ws["A1"]) {
-    ws["A1"].s = { font: { bold: true, sz: 14 }, alignment: { horizontal: "center", vertical: "center" } };
-  }
-  // 表头加粗
+  // 表头加粗（第 1 行，索引 0）
   for (let c = 0; c < EXCEL_HEADERS.length; c++) {
-    const cell = ws[XLSX.utils.encode_cell({ r: 1, c })];
+    const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
     if (cell) cell.s = { font: { bold: true }, fill: { fgColor: "FFEAF1F5" }, alignment: { horizontal: "center" } };
   }
 

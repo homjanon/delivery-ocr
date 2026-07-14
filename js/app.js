@@ -56,8 +56,7 @@
   // 若有保存的 baseUrl/model（兼容旧版），覆盖预设
   if (savedBaseUrl && savedPreset === "custom") { _baseUrl = savedBaseUrl; }
   if (savedModel && savedPreset === "custom") { _model = savedModel; }
-  // 公司名 + API Key
-  $("company").value = localStorage.getItem("do_company") || "";
+  // API Key
   $("apiKey").value = localStorage.getItem("do_apiKey") || "";
 
   // ——— 图片压缩 ———
@@ -108,7 +107,6 @@
     const baseUrl = _baseUrl.replace(/\/$/, "");
     const apiKey = $("apiKey").value.trim();
     const model = _model.trim();
-    const company = $("company").value.trim();
     const files = [...$("fileInput").files];
 
     if (!apiKey) { setStatus("请填写 API Key"); return; }
@@ -117,9 +115,7 @@
     // 保存设置
     localStorage.setItem("do_baseUrl", baseUrl);
     localStorage.setItem("do_model", model);
-    localStorage.setItem("do_company", company);
     localStorage.setItem("do_apiKey", apiKey);
-
     logEl.textContent = "";
     lastWorkbook = null;
     $("downloadBtn").disabled = true;
@@ -174,7 +170,7 @@
       });
       log(`识别成功，共 ${rows.length} 行`);
       renderTable(rows);
-      lastWorkbook = buildWorkbook(company, rows);
+      lastWorkbook = buildWorkbook(rows);
       $("downloadBtn").disabled = false;
       setStatus(`完成：识别 ${rows.length} 行，可下载`);
     } catch (err) {
@@ -198,8 +194,7 @@
 
   $("downloadBtn").addEventListener("click", () => {
     if (lastWorkbook) {
-      const name = ($("company").value.trim() || "送货单") + "_" +
-        new Date().toISOString().slice(0, 10) + ".xlsx";
+      const name = "送货单_" + new Date().toISOString().slice(0, 10) + ".xlsx";
       downloadWorkbook(lastWorkbook, name);
     }
   });
