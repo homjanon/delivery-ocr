@@ -17,11 +17,11 @@
 | **NVIDIA GLM-5.2**（默认，推荐） | `NVIDIA_API_KEY` | `integrate.api.nvidia.com/v1` | ✅ |
 | **NVIDIA Qwen 3.5-397B VLM**（推荐） | `NVIDIA_API_KEY`（同 Key） | `integrate.api.nvidia.com/v1` | ✅ |
 | NVIDIA Qwen 3.5-122B VLM | `NVIDIA_API_KEY`（同 Key） | `integrate.api.nvidia.com/v1` | ✅ |
-| 商汤 DeepSeek-V4-Flash（兜底） | `SENSENOVA_API_KEY` | `token.sensenova.cn/v1` | ❌ 文本 |
-| 硅基流动 DeepSeek-V4-Flash（兜底） | `SILICONFLOW_API_KEY` | `api.siliconflow.cn/v1` | ❌ 文本 |
+| 商汤 DeepSeek-V4-Flash | `SENSENOVA_API_KEY` | `token.sensenova.cn/v1` | ✅ |
+| 硅基流动 DeepSeek-V4-Flash | `SILICONFLOW_API_KEY` | `api.siliconflow.cn/v1` | ✅ |
 | NVIDIA Nemotron-3-Ultra-550B（兜底） | `NVIDIA_API_KEY` | `integrate.api.nvidia.com/v1` | ❌ 文本 |
 
-> 前 3 个（GLM-5.2 / Qwen 3.5-397B / Qwen 3.5-122B）是多模态视觉模型，能识别送货单图片，共用同一个 `NVIDIA_API_KEY`。
+> 前 5 个均为多模态视觉模型，能识别送货单图片。GLM-5.2 / Qwen 3.5 / Nemotron 共用 NVIDIA_API_KEY；DeepSeek-V4-Flash 在商汤和硅基流动两个平台各需对应平台的 Key。
 
 ## 使用
 1. GitHub Pages 打开站点
