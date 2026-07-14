@@ -28,7 +28,7 @@
     if (preset) {
       baseUrl.value = preset.baseUrl;
       model.value = preset.model;
-      keyLabel.textContent = "API Key（" + preset.keyLabel + "，仅存本机会话，关页即清）";
+      keyLabel.textContent = "API Key（" + preset.keyLabel + "，本地持久化，填一次永久记住）";
       $("apiKey").placeholder = preset.keyLabel;
     }
     if (save) {
@@ -53,7 +53,7 @@
   }
   // 非预设字段：公司名 + API Key 仍恢复
   $("company").value = localStorage.getItem("do_company") || "";
-  $("apiKey").value = sessionStorage.getItem("do_apiKey") || "";
+  $("apiKey").value = localStorage.getItem("do_apiKey") || "";
 
   // 如果用户手动改了 baseUrl/model，自动切到「自定义」
   [$("baseUrl"), $("model")].forEach(el => {
@@ -120,7 +120,7 @@
     localStorage.setItem("do_baseUrl", baseUrl);
     localStorage.setItem("do_model", model);
     localStorage.setItem("do_company", company);
-    sessionStorage.setItem("do_apiKey", apiKey);
+    localStorage.setItem("do_apiKey", apiKey);
 
     logEl.textContent = "";
     lastWorkbook = null;
