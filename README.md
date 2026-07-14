@@ -15,10 +15,13 @@
 | 预设 | Key 环境变量 | 端点 | 视觉? |
 |---|---|---|---|
 | **NVIDIA GLM-5.2**（默认，推荐） | `NVIDIA_API_KEY` | `integrate.api.nvidia.com/v1` | ✅ |
+| **NVIDIA Qwen 3.5-397B VLM**（推荐） | `NVIDIA_API_KEY`（同 Key） | `integrate.api.nvidia.com/v1` | ✅ |
+| NVIDIA Qwen 3.5-122B VLM | `NVIDIA_API_KEY`（同 Key） | `integrate.api.nvidia.com/v1` | ✅ |
 | 商汤 DeepSeek-V4-Flash（兜底） | `SENSENOVA_API_KEY` | `token.sensenova.cn/v1` | ❌ 文本 |
+| 硅基流动 DeepSeek-V4-Flash（兜底） | `SILICONFLOW_API_KEY` | `api.siliconflow.cn/v1` | ❌ 文本 |
 | NVIDIA Nemotron-3-Ultra-550B（兜底） | `NVIDIA_API_KEY` | `integrate.api.nvidia.com/v1` | ❌ 文本 |
 
-> 只有 GLM-5.2 是多模态视觉模型，能识别送货单图片。其余两个为文本模型，仅作为备选保留。如需其他模型，选「自定义」手动填写。
+> 前 3 个（GLM-5.2 / Qwen 3.5-397B / Qwen 3.5-122B）是多模态视觉模型，能识别送货单图片，共用同一个 `NVIDIA_API_KEY`。
 
 ## 使用
 1. GitHub Pages 打开站点
