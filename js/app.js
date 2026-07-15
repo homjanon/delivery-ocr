@@ -36,7 +36,7 @@
   const savedPreset = localStorage.getItem("do_preset");
   $("preset").value = (savedPreset && MODEL_PRESETS[savedPreset]) ? savedPreset : "zhipu";
 
-  // 恢复 API Key（持久化）：zhipu / siliconflow / sensenova
+  // 恢复 API Key（持久化）：zhipu / siliconflow
   ["zhipu", "siliconflow"].forEach(k => {
     const el = $(k + "ApiKey");
     el.value = localStorage.getItem("do_" + k + "Key") || "";
