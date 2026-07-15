@@ -21,9 +21,9 @@
       model: "sensenova-6.7-flash-lite", key: "sensenova", vendor: "sensenova"
     },
     sfocr: {
-      name: "硅基流动 DeepSeek-OCR（OCR专用·免费·直连✅）",
+      name: "硅基流动 PaddleOCR-VL-1.5（OCR专用·免费·直连✅）",
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
-      model: "deepseek-ai/DeepSeek-OCR", key: "siliconflow"
+      model: "PaddlePaddle/PaddleOCR-VL-1.5", key: "siliconflow"
     },
   };
 
