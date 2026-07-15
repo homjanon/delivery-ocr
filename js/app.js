@@ -19,6 +19,11 @@
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
       model: "Qwen/Qwen3.5-35B-A3B", key: "siliconflow"
     },
+    sensenova: {
+      name: "商汤 SenseNova 6.7 Flash-Lite（视觉·免费·代理）",
+      baseUrl: "https://cors.homjanon.com",
+      model: "sensenova-6.7-flash-lite", key: "sensenova", vendor: "sensenova"
+    },
 
   };
 
@@ -33,7 +38,7 @@
   $("preset").value = (savedPreset && MODEL_PRESETS[savedPreset]) ? savedPreset : "zhipu";
 
   // 恢复 API Key（持久化）：zhipu / siliconflow
-  ["zhipu", "siliconflow"].forEach(k => {
+  ["zhipu", "siliconflow", "sensenova"].forEach(k => {
     const el = $(k + "ApiKey");
     el.value = localStorage.getItem("do_" + k + "Key") || "";
     el.addEventListener("input", () => localStorage.setItem("do_" + k + "Key", el.value));
@@ -153,7 +158,7 @@
       data = await resp.json();
 
       // 解析回复：标准 OpenAI 格式
-      let raw = data?.choices?.[0]?.message?.content || "";
+      let raw = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.message?.reasoning || "";
       log("模型返回（前 200 字）：\n" + raw.slice(0, 200));
 
       let rows;
