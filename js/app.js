@@ -20,11 +20,6 @@
       baseUrl: "https://api.sensenova.cn/v1/llm/chat-completions",
       model: "sensenova-6.7-flash-lite", key: "sensenova", vendor: "sensenova"
     },
-    qwen35: {
-      name: "硅基流动 Qwen2.5-VL-72B（视觉·推荐·直连✅）",
-      baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
-      model: "Qwen/Qwen2.5-VL-72B", key: "siliconflow"
-    },
     sfocr: {
       name: "硅基流动 DeepSeek-OCR（OCR专用·免费·直连✅）",
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
@@ -113,8 +108,11 @@
 
     let images;
     try {
-      images = await Promise.all(files.map(f => compressImage(f)));
-      log(`已压缩 ${images.length} 张图片`);
+      // 多图时自动降低压缩质量与分辨率，避免免费层限流
+      const maxDim = files.length > 2 ? 1200 : 2000;
+      const quality = files.length > 2 ? 0.7 : 0.85;
+      images = await Promise.all(files.map(f => compressImage(f, maxDim, quality)));
+      log(`已压缩 ${images.length} 张图片（maxDim=${maxDim} quality=${quality}）`);
     } catch (err) {
       setStatus("图片处理失败：" + err.message); $("runBtn").disabled = false; return;
     }
