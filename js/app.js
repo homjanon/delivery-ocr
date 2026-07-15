@@ -9,28 +9,22 @@
   // 模型预设
   const MODEL_PRESETS = {
     glm52: { name: "NVIDIA GLM-5.2（视觉·推荐）",
-      baseUrl: "https://integrate.api.nvidia.com/v1", model: "z-ai/glm-5.2",
-      keyLabel: "NVIDIA_API_KEY" },
+      baseUrl: "https://integrate.api.nvidia.com/v1", model: "z-ai/glm-5.2" },
     qw397: { name: "NVIDIA Qwen 3.5-397B VLM（视觉·推荐）",
-      baseUrl: "https://integrate.api.nvidia.com/v1", model: "qwen/qwen3.5-397b-a17b",
-      keyLabel: "NVIDIA_API_KEY" },
+      baseUrl: "https://integrate.api.nvidia.com/v1", model: "qwen/qwen3.5-397b-a17b" },
     sfds: { name: "硅基流动 DeepSeek-V4-Flash（视觉）",
-      baseUrl: "https://api.siliconflow.cn/v1", model: "deepseek-ai/DeepSeek-V4-Flash",
-      keyLabel: "SILICONFLOW_API_KEY" },
+      baseUrl: "https://api.siliconflow.cn/v1", model: "deepseek-ai/DeepSeek-V4-Flash" },
   };
 
   function log(msg) { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
   function setStatus(msg) { status.textContent = msg; }
 
-  // 应用预设：记录 baseUrl / model / 更新 API Key 标签
+  // 应用预设：记录 baseUrl / model
   function applyPreset(presetKey, save = true) {
     const preset = MODEL_PRESETS[presetKey];
-    const keyLabel = $("apiKeyLabel");
     if (preset) {
       _baseUrl = preset.baseUrl;
       _model = preset.model;
-      keyLabel.textContent = "API Key（" + preset.keyLabel + "，本地持久化，填一次永久记住）";
-      $("apiKey").placeholder = preset.keyLabel;
     }
     if (save) {
       localStorage.setItem("do_preset", presetKey);
@@ -42,7 +36,7 @@
   // 预设下拉变更
   $("preset").addEventListener("change", () => applyPreset($("preset").value));
 
-  // 恢复设置（预设优先）
+  // 恢复设置
   const savedPreset = localStorage.getItem("do_preset");
   const savedBaseUrl = localStorage.getItem("do_baseUrl");
   const savedModel = localStorage.getItem("do_model");
@@ -53,11 +47,17 @@
     $("preset").value = "glm52";
     applyPreset("glm52", false);
   }
-  // 若有保存的 baseUrl/model（兼容旧版），覆盖预设
   if (savedBaseUrl && savedPreset === "custom") { _baseUrl = savedBaseUrl; }
   if (savedModel && savedPreset === "custom") { _model = savedModel; }
-  // API Key
-  $("apiKey").value = localStorage.getItem("do_apiKey") || "";
+
+  // 恢复 API Key（持久化）
+  $("nvidiaApiKey").value = localStorage.getItem("do_nvidiaKey") || "";
+  $("siliconflowApiKey").value = localStorage.getItem("do_siliconflowKey") || "";
+  // 输入即保存
+  $("nvidiaApiKey").addEventListener("input", () =>
+    localStorage.setItem("do_nvidiaKey", $("nvidiaApiKey").value));
+  $("siliconflowApiKey").addEventListener("input", () =>
+    localStorage.setItem("do_siliconflowKey", $("siliconflowApiKey").value));
 
   // ——— 图片压缩 ———
   function compressImage(file, maxDim = 2000, quality = 0.85) {
@@ -105,7 +105,9 @@
   // ——— 主流程：识别 ———
   $("runBtn").addEventListener("click", async () => {
     const baseUrl = _baseUrl.replace(/\/$/, "");
-    const apiKey = $("apiKey").value.trim();
+    // 按预设自动选取对应的 API Key 框
+    const preset = $("preset").value;
+    const apiKey = (preset === "sfds") ? $("siliconflowApiKey").value.trim() : $("nvidiaApiKey").value.trim();
     const model = _model.trim();
     const files = [...$("fileInput").files];
 
@@ -115,7 +117,6 @@
     // 保存设置
     localStorage.setItem("do_baseUrl", baseUrl);
     localStorage.setItem("do_model", model);
-    localStorage.setItem("do_apiKey", apiKey);
     logEl.textContent = "";
     lastWorkbook = null;
     $("downloadBtn").disabled = true;

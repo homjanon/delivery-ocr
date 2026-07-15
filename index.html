@@ -22,8 +22,16 @@
         <option value="sfds">硅基流动 DeepSeek-V4-Flash（视觉）</option>
       </select>
     </label>
-    <p id="apiKeyLabel">API Key（NVIDIA_API_KEY，本地持久化，填一次永久记住）</p>
-    <input id="apiKey" type="password" placeholder="NVIDIA_API_KEY" autocomplete="off">
+  </section>
+
+  <section class="card">
+    <h3>API Key 设置（填一次永久记住，切换预设自动匹配对应 Key）</h3>
+    <label>NVIDIA_API_KEY（用于 GLM-5.2 / Qwen 3.5-397B）
+      <input id="nvidiaApiKey" type="password" placeholder="粘贴 NVIDIA_API_KEY" autocomplete="off">
+    </label>
+    <label>SILICONFLOW_API_KEY（用于 硅基流动 DeepSeek-V4-Flash）
+      <input id="siliconflowApiKey" type="password" placeholder="粘贴 SILICONFLOW_API_KEY" autocomplete="off">
+    </label>
   </section>
 
   <section class="card">

@@ -22,7 +22,7 @@
 
 ## 使用
 1. GitHub Pages 打开站点
-2. 填写：**API Key**（选择预设后自动填入 endpoint / 模型名）
+2. 选择模型预设 → 在下方对应 Key 框里填入 API Key（只需填 1 次，永久记住）
 3. 上传送货单图片（可多选）
 4. 点「识别并生成 Excel」→ 预览表格 → 点「下载 Excel」
 5. API Key 仅存浏览器 sessionStorage（关页即清），不上传任何服务器
