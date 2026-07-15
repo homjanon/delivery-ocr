@@ -7,23 +7,16 @@
   let lastWorkbook = null;
 
   // 模型预设（baseUrl 已含完整 /chat/completions 端点，调用时直接 fetch(baseUrl)）
-  //   key   : 对应 API Key 输入框 id 前缀（zhipu → #zhipuApiKey）
-  //   vendor: 'sensenova' 时走商汤专属格式（image_url 为字符串；回复在 data.choices[0].message）
   const MODEL_PRESETS = {
     zhipu: {
       name: "智谱 GLM-4.6V-Flash（视觉·直连✅）",
       baseUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
       model: "glm-4.6v-flash", key: "zhipu"
     },
-    sensenova: {
-      name: "商汤 SenseNova 6.7 Flash-Lite（视觉·直连✅）",
-      baseUrl: "https://api.sensenova.cn/v1/llm/chat-completions",
-      model: "sensenova-6.7-flash-lite", key: "sensenova", vendor: "sensenova"
-    },
-    sfocr: {
-      name: "硅基流动 PaddleOCR-VL-1.5（OCR专用·免费·直连✅）",
+    qwen35: {
+      name: "硅基流动 Qwen3.5-397B-A17B（视觉·直连✅）",
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
-      model: "PaddlePaddle/PaddleOCR-VL-1.5", key: "siliconflow"
+      model: "Qwen/Qwen3.5-397B-A17B", key: "siliconflow"
     },
   };
 
@@ -37,8 +30,8 @@
   const savedPreset = localStorage.getItem("do_preset");
   $("preset").value = (savedPreset && MODEL_PRESETS[savedPreset]) ? savedPreset : "zhipu";
 
-  // 恢复 API Key（持久化）：三个框 zhipu / sensenova / siliconflow
-  ["zhipu", "sensenova", "siliconflow"].forEach(k => {
+  // 恢复 API Key（持久化）：两个框 zhipu / siliconflow
+  ["zhipu", "siliconflow"].forEach(k => {
     const el = $(k + "ApiKey");
     el.value = localStorage.getItem("do_" + k + "Key") || "";
     el.addEventListener("input", () => localStorage.setItem("do_" + k + "Key", el.value));
@@ -117,10 +110,8 @@
       setStatus("图片处理失败：" + err.message); $("runBtn").disabled = false; return;
     }
 
-    // 图像部分：商汤 SenseNova 的 image_url 是「字符串」；其余为 { url: ... }
-    const imgParts = images.map(b64 => cfg.vendor === "sensenova"
-      ? { type: "image_url", image_url: b64 }
-      : { type: "image_url", image_url: { url: b64 } });
+    // 图像部分：所有模型用标准 {url: ...} 格式
+    const imgParts = images.map(b64 => ({ type: "image_url", image_url: { url: b64 } }));
 
     // 消息构造：标准 system（提示词）+ user（指令 + 图片）
     const messages = [
@@ -131,8 +122,7 @@
     setStatus("调用模型中…");
     log("POST " + baseUrl + "  model=" + model);
     try {
-      const body = { model, messages, temperature: 0 };
-      if (cfg.vendor === "sensenova") body.max_new_tokens = 2048; // 商汤用此参数控制长度
+      const body = { model, messages, temperature: 0, max_tokens: 2048 };
       const resp = await fetch(baseUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
@@ -144,15 +134,8 @@
       }
       const data = await resp.json();
 
-      // 解析回复文本：商汤在 data.choices[0].message（字符串）；其余在 choices[0].message.content
-      let raw;
-      if (cfg.vendor === "sensenova") {
-        if (data.error) throw new Error("商汤错误：" + (data.error.message || JSON.stringify(data.error)));
-        if (data.status && data.status.code !== 0) throw new Error("商汤状态：" + (data.status.message || data.status.code));
-        raw = data?.data?.choices?.[0]?.message || "";
-      } else {
-        raw = data?.choices?.[0]?.message?.content || "";
-      }
+      // 标准 OpenAI 格式解析
+      const raw = data?.choices?.[0]?.message?.content || "";
       log("模型返回（前 200 字）：\n" + raw.slice(0, 200));
 
       let rows;

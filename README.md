@@ -15,11 +15,9 @@
 | 预设 | Key 框 | 端点 | 视觉? |
 |---|---|---|---|
 | **智谱 GLM-4.6V-Flash** | 智谱 Key | `open.bigmodel.cn/api/paas/v4/chat/completions` | ✅ |
-| **商汤 SenseNova 6.7 Flash-Lite** | 商汤 Token | `api.sensenova.cn/v1/llm/chat-completions` | ✅ |
-| **硅基流动 PaddleOCR-VL-1.5** | 硅基流动 Key（同框） | `api.siliconflow.cn/v1/chat/completions` | ✅（OCR VL·免费） |
+| **硅基流动 Qwen3.5-397B-A17B** | 硅基流动 Key | `api.siliconflow.cn/v1/chat/completions` | ✅ |
 
-> 三家接口（智谱 / 商汤 / 硅基流动）均经实测：OPTIONS 预检返回 `Access-Control-Allow-Origin`，浏览器可**直连**，国内无需任何代理。
-> 商汤接口格式与 OpenAI 略有差异（图片以字符串传入、回复在 `data.choices[0].message`），站点已做适配，无需你关心。
+> 两家接口（智谱 / 硅基流动）均经实测：OPTIONS 预检返回 `Access-Control-Allow-Origin`，浏览器可**直连**，国内无需任何代理。
 > 默认预设为**智谱 GLM-4.6V-Flash**。
 
 ## 使用
@@ -36,8 +34,6 @@
 ## 关于 CORS
 所有模型厂商（智谱 / 商汤 / 硅基流动）均已实测：OPTIONS 预检返回 `Access-Control-Allow-Origin` 及 `Allow-Headers`（含 `Authorization`、`Content-Type`）。浏览器可**直接 fetch**，**无需任何代理**。这是从 Cloudflare Workers（国内被墙）切换为国内厂商直连的根本原因，完整流程更简洁、零基础设施成本。
 
-> 若后续需添加其他不支持 CORS 的厂商，可回退到自建代理方案——`proxy-worker.js` 源码见 `homjanon.github.io/proxy-worker.js`。
-
 ## 文件结构
 ```
 delivery-ocr/
@@ -52,7 +48,7 @@ delivery-ocr/
 
 ## 安全说明
 - API Key 由你手动填入、仅存本机 localStorage，**不写进代码、不上传服务器**；页面仅供个人自用，勿公开分享链接
-- 识别过程：全部为浏览器**直连**各厂商 API，不经过任何代理或第三方服务器
+- 识别过程：全部为浏览器**直连**模型 API，不经过任何代理或第三方服务器
 
 ## 自定义
 - 改表头/提示词：编辑 `js/prompt.js` 与 `js/excel.js` 的 `EXCEL_HEADERS`
