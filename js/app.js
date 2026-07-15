@@ -6,14 +6,20 @@
   let lastWorkbook = null;
   let _baseUrl = "", _model = "";
 
-  // 模型预设
+  // CORS 代理（自建 Cloudflare Worker）：浏览器无法直接访问 *.github.io → NVIDIA/SiliconFlow，
+  // 必须经 Worker 转发 POST 体与 Authorization 头。?url= 内放完整端点（已 encodeURIComponent）。
+  const WORKER = "https://cors-proxy.homjanon.workers.dev/?url=";
+  const nvidiaEp = encodeURIComponent("https://integrate.api.nvidia.com/v1/chat/completions");
+  const sfEp = encodeURIComponent("https://api.siliconflow.cn/v1/chat/completions");
+
+  // 模型预设（baseUrl 已含完整 /chat/completions 端点，调用时直接 fetch(baseUrl)）
   const MODEL_PRESETS = {
     glm52: { name: "NVIDIA GLM-5.2（视觉·推荐）",
-      baseUrl: "https://integrate.api.nvidia.com/v1", model: "z-ai/glm-5.2" },
+      baseUrl: WORKER + nvidiaEp, model: "z-ai/glm-5.2" },
     qw397: { name: "NVIDIA Qwen 3.5-397B VLM（视觉·推荐）",
-      baseUrl: "https://integrate.api.nvidia.com/v1", model: "qwen/qwen3.5-397b-a17b" },
-    sfds: { name: "硅基流动 DeepSeek-V4-Flash（视觉）",
-      baseUrl: "https://api.siliconflow.cn/v1", model: "deepseek-ai/DeepSeek-V4-Flash" },
+      baseUrl: WORKER + nvidiaEp, model: "qwen/qwen3.5-397b-a17b" },
+    sfds: { name: "硅基流动 Qwen2.5-VL-72B（视觉·兜底）",
+      baseUrl: WORKER + sfEp, model: "Qwen/Qwen2.5-VL-72B-Instruct" },
   };
 
   function log(msg) { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
@@ -136,9 +142,9 @@
     images.forEach(b64 => content.push({ type: "image_url", image_url: { url: b64 } }));
 
     setStatus("调用模型中…");
-    log("POST " + baseUrl + "/chat/completions  model=" + model);
+    log("POST " + baseUrl + "  model=" + model);
     try {
-      const resp = await fetch(baseUrl + "/chat/completions", {
+      const resp = await fetch(baseUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
         body: JSON.stringify({
