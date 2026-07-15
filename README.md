@@ -76,7 +76,8 @@ delivery-ocr/
 ├── js/excel.js                # SheetJS 封装（台头+表头+数据+合计）
 ├── vendor/xlsx.full.min.js    # 内置 SheetJS（不走 CDN）
 ├── local/                     # 本地 Python 版（零网页、零CORS，兼容 Win7）
-│   ├── ocr_delivery.py        #   主程序（单文件）
+│   ├── ocr_delivery.py        #   命令行主程序（单文件）
+│   ├── gui_delivery.py        #   桌面 GUI 窗口版（Tkinter，零额外依赖）
 │   ├── requirements.txt       #   依赖（锁 Win7/Py3.9 兼容版本）
 │   ├── .env.example           #   密钥模板
 │   ├── .gitignore
