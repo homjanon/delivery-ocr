@@ -12,13 +12,14 @@
 ## 模型预设
 页面下拉直接切换，全部为**国内可达厂商、浏览器直连（原生 CORS，无需代理）**：
 
-| 预设 | Key 框 | 端点 | 视觉? |
-|---|---|---|---|
-| **智谱 GLM-4.6V-Flash** | 智谱 Key | `open.bigmodel.cn/api/paas/v4/chat/completions` | ✅ |
-| **硅基流动 Qwen3.5-397B-A17B** | 硅基流动 Key | `api.siliconflow.cn/v1/chat/completions` | ✅ |
+| 预设 | Key 框 | 端点 | 视觉? | 费用 |
+|---|---|---|---|---|
+| **智谱 GLM-4.6V-Flash** | 智谱 Key | `open.bigmodel.cn/api/paas/v4/chat/completions` | ✅ | 免费（有时限流） |
+| **硅基流动 Qwen3.5-397B-A17B** | 硅基流动 Key | `api.siliconflow.cn/v1/chat/completions` | ✅ | 付费·适中 |
+| **硅基流动 Qwen3.5-35B-A3B** | 硅基流动 Key（同框） | `api.siliconflow.cn/v1/chat/completions` | ✅ | 付费·便宜 |
 
-> 两家接口（智谱 / 硅基流动）均经实测：OPTIONS 预检返回 `Access-Control-Allow-Origin`，浏览器可**直连**，国内无需任何代理。
-> 默认预设为**智谱 GLM-4.6V-Flash**。
+> 智谱 / 硅基流动均经实测：OPTIONS 预检返回 `Access-Control-Allow-Origin`，浏览器可**直连**，国内无需任何代理。
+> 默认预设为**智谱 GLM-4.6V-Flash**（免费）。若繁忙，可切换至硅基流动付费模型（CORS 直连、稳定可靠）。
 
 ## 使用
 1. GitHub Pages 打开站点
