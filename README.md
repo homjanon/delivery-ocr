@@ -17,9 +17,10 @@
 | **智谱 GLM-4.6V-Flash** | 智谱 Key | `open.bigmodel.cn/api/paas/v4/chat/completions` | ✅ | 免费（有时限流） |
 | **硅基流动 Qwen3.5-397B-A17B** | 硅基流动 Key | `api.siliconflow.cn/v1/chat/completions` | ✅ | 付费·适中 |
 | **硅基流动 Qwen3.5-35B-A3B** | 硅基流动 Key（同框） | `api.siliconflow.cn/v1/chat/completions` | ✅ | 付费·便宜 |
+| **商汤 SenseNova 6.7 Flash-Lite** | 商汤 Token | `api.sensenova.cn/v1/llm/chat-completions` | ✅ | ⚠️ 免费·需重填有效 Token |
 
-> 智谱 / 硅基流动均经实测：OPTIONS 预检返回 `Access-Control-Allow-Origin`，浏览器可**直连**，国内无需任何代理。
-> 默认预设为**智谱 GLM-4.6V-Flash**（免费）。若繁忙，可切换至硅基流动付费模型（CORS 直连、稳定可靠）。
+> 三家均经实测 CORS 直连；商汤为旧 MaaS 格式（`image_url` 为字符串、回复在 `data.choices[0].message`），站点已做适配。
+> 默认预设为**智谱 GLM-4.6V-Flash**（免费）。
 
 ## 使用
 1. GitHub Pages 打开站点
