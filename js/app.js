@@ -19,12 +19,6 @@
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
       model: "Qwen/Qwen3.5-35B-A3B", key: "siliconflow"
     },
-    sensenova: {
-      name: "商汤 SenseNova 6.7 Flash-Lite（视觉·免费·代理）",
-      baseUrl: "https://cors.homjanon.com",
-      model: "sensenova-6.7-flash-lite", key: "sensenova", vendor: "sensenova"
-    },
-
   };
 
   function log(msg) { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
@@ -38,7 +32,7 @@
   $("preset").value = (savedPreset && MODEL_PRESETS[savedPreset]) ? savedPreset : "zhipu";
 
   // 恢复 API Key（持久化）：zhipu / siliconflow
-  ["zhipu", "siliconflow", "sensenova"].forEach(k => {
+  ["zhipu", "siliconflow"].forEach(k => {
     const el = $(k + "ApiKey");
     el.value = localStorage.getItem("do_" + k + "Key") || "";
     el.addEventListener("input", () => localStorage.setItem("do_" + k + "Key", el.value));
@@ -81,11 +75,17 @@
   function extractJSON(text) {
     let t = (text || "").trim();
     t = t.replace(/<think>[\s\S]*?<\/think>/gi, "");
+    // 剥离可能不闭合的代码围栏（模型被截断时常见）
+    t = t.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "");
     const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (fence) t = fence[1].trim();
     const s = t.indexOf("["), e = t.lastIndexOf("]");
     if (s !== -1 && e !== -1 && e > s) t = t.slice(s, e + 1);
     if (!t) throw new Error("模型未输出任何内容");
+    // 截断容错：以 [ 开头但缺结尾 ] 时，尝试补 ] 修复
+    if (t.startsWith("[") && !t.endsWith("]")) {
+      t = t.replace(/,\s*$/, "").replace(/\s+$/, "") + "]";
+    }
     try { return JSON.parse(t); }
     catch (err) {
       throw new Error("JSON 不完整/被截断（可能触及 max_tokens）：" + err.message);
@@ -135,7 +135,7 @@
     log("POST " + baseUrl + "  model=" + model);
     try {
       const body = { model, messages, temperature: 0 };
-      body.max_tokens = 4096;
+      body.max_tokens = cfg.key === "qwen35b" ? 4096 : 8192;
       body.chat_template_kwargs = { enable_thinking: false };
       const MAX_RETRIES = 2;
       let resp, data;
