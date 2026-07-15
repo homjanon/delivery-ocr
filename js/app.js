@@ -1,75 +1,59 @@
 // 主流程：上传 → 压缩图片 → 调视觉大模型 → 解析 JSON → 预览 → 生成 Excel
+// 所有模型均浏览器直连（各厂商原生支持 CORS，已实测预检返回 Access-Control-Allow-Origin），无需任何代理。
 (function () {
   const $ = id => document.getElementById(id);
   const status = $("status");
   const logEl = $("log");
   let lastWorkbook = null;
-  let _baseUrl = "", _model = "";
-
-  // 端点说明：
-  //  · 硅基流动 api.siliconflow.cn 原生支持 CORS（预检返回 Access-Control-Allow-Origin: *），
-  //    浏览器可直连，无需任何代理 → SF_DIRECT。
-  //  · NVIDIA integrate.api.nvidia.com 的预检不带 ACAO，浏览器无法直连，必须走代理。
-  //    默认走 Cloudflare Worker，但 Cloudflare 在国内常被墙；如需国内可用，把 WORKER 改成
-  //    你自建的国内可达代理（阿里云函数计算 / 腾讯云函数等部署 proxy-worker.js 的地址）。
-  const WORKER = "https://cors-proxy.homjanon.workers.dev/?url=";
-  const nvidiaEp = encodeURIComponent("https://integrate.api.nvidia.com/v1/chat/completions");
-  const SF_DIRECT = "https://api.siliconflow.cn/v1/chat/completions";
 
   // 模型预设（baseUrl 已含完整 /chat/completions 端点，调用时直接 fetch(baseUrl)）
+  //   key      : 对应 API Key 输入框 id 前缀（zhipu → #zhipuApiKey）
+  //   vendor   : 'sensenova' 时走商汤专属格式（image_url 为字符串；回复在 data.choices[0].message）
+  //   grounding: true 时把系统提示词放进 user 消息（DeepSeek-OCR 等 OCR 专用模型）
   const MODEL_PRESETS = {
-    sfds: { name: "硅基流动 Qwen2.5-VL-72B（视觉·直连✅）",
-      baseUrl: SF_DIRECT, model: "Qwen/Qwen2.5-VL-72B-Instruct" },
-    sfocr: { name: "硅基流动 DeepSeek-OCR（OCR专用·免费·直连✅）",
-      baseUrl: SF_DIRECT, model: "deepseek-ai/DeepSeek-OCR", grounding: true },
-    glm52: { name: "NVIDIA GLM-5.2（需国内可达代理）",
-      baseUrl: WORKER + nvidiaEp, model: "z-ai/glm-5.2" },
-    qw397: { name: "NVIDIA Qwen 3.5-397B VLM（需国内可达代理）",
-      baseUrl: WORKER + nvidiaEp, model: "qwen/qwen3.5-397b-a17b" },
+    zhipu: {
+      name: "智谱 GLM-4.6V-Flash（视觉·直连✅）",
+      baseUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+      model: "glm-4.6v-flash", key: "zhipu"
+    },
+    sensenova: {
+      name: "商汤 SenseNova U1（视觉·直连✅）",
+      baseUrl: "https://api.sensenova.cn/v1/llm/chat-completions",
+      model: "SenseNova-U1", key: "sensenova", vendor: "sensenova"
+    },
+    qwen35: {
+      name: "硅基流动 Qwen3.5-4B（视觉·直连✅）",
+      baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
+      model: "Qwen/Qwen3.5-4B", key: "siliconflow"
+    },
+    sfocr: {
+      name: "硅基流动 DeepSeek-OCR（OCR专用·免费·直连✅）",
+      baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
+      model: "deepseek-ai/DeepSeek-OCR", key: "siliconflow", grounding: true
+    },
+    dsv4: {
+      name: "硅基流动 DeepSeek-V4-Flash（视觉·直连✅）",
+      baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
+      model: "deepseek-ai/DeepSeek-V4-Flash", key: "siliconflow"
+    },
   };
 
   function log(msg) { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
   function setStatus(msg) { status.textContent = msg; }
 
-  // 应用预设：记录 baseUrl / model
-  function applyPreset(presetKey, save = true) {
-    const preset = MODEL_PRESETS[presetKey];
-    if (preset) {
-      _baseUrl = preset.baseUrl;
-      _model = preset.model;
-    }
-    if (save) {
-      localStorage.setItem("do_preset", presetKey);
-      localStorage.setItem("do_baseUrl", _baseUrl);
-      localStorage.setItem("do_model", _model);
-    }
-  }
+  // 预设下拉变更即保存
+  $("preset").addEventListener("change", () => localStorage.setItem("do_preset", $("preset").value));
 
-  // 预设下拉变更
-  $("preset").addEventListener("change", () => applyPreset($("preset").value));
-
-  // 恢复设置
+  // 恢复预设（默认智谱 GLM-4.6V-Flash）
   const savedPreset = localStorage.getItem("do_preset");
-  const savedBaseUrl = localStorage.getItem("do_baseUrl");
-  const savedModel = localStorage.getItem("do_model");
-  if (savedPreset && MODEL_PRESETS[savedPreset]) {
-    $("preset").value = savedPreset;
-    applyPreset(savedPreset, false);
-  } else {
-    $("preset").value = "sfds";
-    applyPreset("sfds", false);
-  }
-  if (savedBaseUrl && savedPreset === "custom") { _baseUrl = savedBaseUrl; }
-  if (savedModel && savedPreset === "custom") { _model = savedModel; }
+  $("preset").value = (savedPreset && MODEL_PRESETS[savedPreset]) ? savedPreset : "zhipu";
 
-  // 恢复 API Key（持久化）
-  $("nvidiaApiKey").value = localStorage.getItem("do_nvidiaKey") || "";
-  $("siliconflowApiKey").value = localStorage.getItem("do_siliconflowKey") || "";
-  // 输入即保存
-  $("nvidiaApiKey").addEventListener("input", () =>
-    localStorage.setItem("do_nvidiaKey", $("nvidiaApiKey").value));
-  $("siliconflowApiKey").addEventListener("input", () =>
-    localStorage.setItem("do_siliconflowKey", $("siliconflowApiKey").value));
+  // 恢复 API Key（持久化）：三个框 zhipu / sensenova / siliconflow
+  ["zhipu", "sensenova", "siliconflow"].forEach(k => {
+    const el = $(k + "ApiKey");
+    el.value = localStorage.getItem("do_" + k + "Key") || "";
+    el.addEventListener("input", () => localStorage.setItem("do_" + k + "Key", el.value));
+  });
 
   // ——— 图片压缩 ———
   function compressImage(file, maxDim = 2000, quality = 0.85) {
@@ -116,19 +100,16 @@
 
   // ——— 主流程：识别 ———
   $("runBtn").addEventListener("click", async () => {
-    const baseUrl = _baseUrl.replace(/\/$/, "");
-    // 按预设自动选取对应的 API Key 框
-    const preset = $("preset").value;
-    const apiKey = (preset === "sfds" || preset === "sfocr") ? $("siliconflowApiKey").value.trim() : $("nvidiaApiKey").value.trim();
-    const model = _model.trim();
+    const presetKey = $("preset").value;
+    const cfg = MODEL_PRESETS[presetKey];
+    const baseUrl = cfg.baseUrl.replace(/\/$/, "");
+    const model = cfg.model;
+    const apiKey = $(cfg.key + "ApiKey").value.trim();
     const files = [...$("fileInput").files];
 
-    if (!apiKey) { setStatus("请填写 API Key"); return; }
+    if (!apiKey) { setStatus("请填写对应模型的 API Key"); return; }
     if (!files.length) { setStatus("请先上传送货单图片"); return; }
 
-    // 保存设置
-    localStorage.setItem("do_baseUrl", baseUrl);
-    localStorage.setItem("do_model", model);
     logEl.textContent = "";
     lastWorkbook = null;
     $("downloadBtn").disabled = true;
@@ -144,11 +125,15 @@
       setStatus("图片处理失败：" + err.message); $("runBtn").disabled = false; return;
     }
 
-    // 构造消息：DeepSeek-OCR 等 OCR 专用模型指令需放在 user 消息（不单独用 system 角色）；
-    // 注意：不放 <|grounding|> 前缀，避免返回 <|ref|> 标签污染 JSON。其余模型用 system + user 标准结构。
-    const imgParts = images.map(b64 => ({ type: "image_url", image_url: { url: b64 } }));
+    // 图像部分：商汤 SenseNova 的 image_url 是「字符串」；其余为 { url: ... }
+    const imgParts = images.map(b64 => cfg.vendor === "sensenova"
+      ? { type: "image_url", image_url: b64 }
+      : { type: "image_url", image_url: { url: b64 } });
+
+    // 消息构造：DeepSeek-OCR 等 OCR 专用模型把提示词放进 user 消息（不放 <|grounding|> 避免 <|ref|> 污染 JSON）；
+    // 其余模型用标准 system + user 结构。
     let messages;
-    if (MODEL_PRESETS[preset] && MODEL_PRESETS[preset].grounding) {
+    if (cfg.grounding) {
       messages = [{
         role: "user",
         content: [
@@ -166,21 +151,28 @@
     setStatus("调用模型中…");
     log("POST " + baseUrl + "  model=" + model);
     try {
+      const body = { model, messages, temperature: 0 };
+      if (cfg.vendor === "sensenova") body.max_new_tokens = 2048; // 商汤用此参数控制长度
       const resp = await fetch(baseUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0
-        })
+        body: JSON.stringify(body)
       });
       if (!resp.ok) {
         const errText = await resp.text();
         throw new Error("HTTP " + resp.status + " " + errText.slice(0, 300));
       }
       const data = await resp.json();
-      const raw = data.choices?.[0]?.message?.content || "";
+
+      // 解析回复文本：商汤在 data.choices[0].message（字符串）；其余在 choices[0].message.content
+      let raw;
+      if (cfg.vendor === "sensenova") {
+        if (data.error) throw new Error("商汤错误：" + (data.error.message || JSON.stringify(data.error)));
+        if (data.status && data.status.code !== 0) throw new Error("商汤状态：" + (data.status.message || data.status.code));
+        raw = data?.data?.choices?.[0]?.message || "";
+      } else {
+        raw = data?.choices?.[0]?.message?.content || "";
+      }
       log("模型返回（前 200 字）：\n" + raw.slice(0, 200));
 
       let rows;

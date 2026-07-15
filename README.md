@@ -10,17 +10,19 @@
 - 固定表头：`单据编号 | 日期 | 客户/收货单位 | 名称及规格 | 规格型号/颜色 | 数量 | 单位 | 单价 | 金额 | 备注 | 台头公司名称`
 
 ## 模型预设
-页面下拉直接切换（移植自 `portfolio/scripts/call_llm.py`）：
+页面下拉直接切换，全部为**国内可达厂商、浏览器直连（原生 CORS，无需代理）**：
 
-| 预设 | Key 框 | 端点 | 视觉? | 国内可用 |
-|---|---|---|---|---|
-| **硅基流动 Qwen2.5-VL-72B** | 硅基流动 Key | `api.siliconflow.cn/v1`（直连✅） | ✅ | ✅ 直连 |
-| **硅基流动 DeepSeek-OCR** | 硅基流动 Key（同 Key） | `api.siliconflow.cn/v1`（直连✅） | ✅（OCR 专用·免费） | ✅ 直连 |
-| **NVIDIA GLM-5.2** | NVIDIA Key | `integrate.api.nvidia.com/v1`（需代理） | ✅ | ⚠️ 需国内可达代理 |
-| **NVIDIA Qwen 3.5-397B VLM** | NVIDIA Key（同 Key） | `integrate.api.nvidia.com/v1`（需代理） | ✅ | ⚠️ 需国内可达代理 |
+| 预设 | Key 框 | 端点 | 视觉? |
+|---|---|---|---|
+| **智谱 GLM-4.6V-Flash** | 智谱 Key | `open.bigmodel.cn/api/paas/v4/chat/completions` | ✅ |
+| **商汤 SenseNova U1** | 商汤 Token | `api.sensenova.cn/v1/llm/chat-completions` | ✅ |
+| **硅基流动 Qwen3.5-4B** | 硅基流动 Key | `api.siliconflow.cn/v1/chat/completions` | ✅ |
+| **硅基流动 DeepSeek-OCR** | 硅基流动 Key（同框） | `api.siliconflow.cn/v1/chat/completions` | ✅（OCR 专用·免费） |
+| **硅基流动 DeepSeek-V4-Flash** | 硅基流动 Key（同框） | `api.siliconflow.cn/v1/chat/completions` | ✅ |
 
-> 硅基流动接口原生支持 CORS（预检返回 `Access-Control-Allow-Origin: *`），浏览器可**直连**，无需任何代理，国内立即可用（默认预设已设为硅基流动）。
-> NVIDIA 接口 OPTIONS 预检不带 CORS 头，浏览器无法直连，必须走代理。默认走 `cors-proxy.homjanon.workers.dev`，但 **Cloudflare 在大陆常被墙**；如需在国内用 NVIDIA，把 `app.js` 顶部 `WORKER` 常量改为你自建的国内可达代理地址（在阿里云函数计算 / 腾讯云函数部署 `proxy-worker.js`）。
+> 四家接口（智谱 / 商汤 / 硅基流动）均经实测：OPTIONS 预检返回 `Access-Control-Allow-Origin`，浏览器可**直连**，国内无需任何代理。
+> 商汤接口格式与 OpenAI 略有差异（图片以字符串传入、回复在 `data.choices[0].message`），站点已做适配，无需你关心。
+> 默认预设为**智谱 GLM-4.6V-Flash**。
 
 ## 使用
 1. GitHub Pages 打开站点
@@ -33,14 +35,10 @@
 - 仓库根目录即站点根；Settings → Pages → Source 选 `main` 分支 `/ (root)`
 - 推送后自动生效，无需构建
 
-## 关于 CORS 与代理（国内用户必读）
-- **硅基流动 `api.siliconflow.cn`**：预检返回 `Access-Control-Allow-Origin: *`，浏览器可**直连**，无需代理。
-- **NVIDIA `integrate.api.nvidia.com`**：OPTIONS 预检不带 CORS 头，浏览器禁止直连，必须走代理转发 POST 体与 Authorization。
-- **代理选型**：`proxy-worker.js` 是标准 JS（fetch + CORS 透传），可部署到任何支持 Web 标准的运行时：
-  1. Cloudflare Workers（已部署 `cors-proxy.homjanon.workers.dev`）——但 **Cloudflare 在大陆常被墙**，从国内访问会 `Failed to fetch`；
-  2. 国内可达替代：阿里云函数计算 FC / 腾讯云云函数 SCF / 自有国内服务器。部署后把 `app.js` 的 `WORKER` 常量改成你的地址（`?url=` 内放完整端点，需 encodeURIComponent）。
+## 关于 CORS
+所有模型厂商（智谱 / 商汤 / 硅基流动）均已实测：OPTIONS 预检返回 `Access-Control-Allow-Origin` 及 `Allow-Headers`（含 `Authorization`、`Content-Type`）。浏览器可**直接 fetch**，**无需任何代理**。这是从 Cloudflare Workers（国内被墙）切换为国内厂商直连的根本原因，完整流程更简洁、零基础设施成本。
 
-> `proxy-worker.js` 源码见 `homjanon.github.io/proxy-worker.js`。个人自用代理，请求经它中转（含你的 API Key），请确保不被他人滥用。
+> 若后续需添加其他不支持 CORS 的厂商，可回退到自建代理方案——`proxy-worker.js` 源码见 `homjanon.github.io/proxy-worker.js`。
 
 ## 文件结构
 ```
@@ -56,7 +54,7 @@ delivery-ocr/
 
 ## 安全说明
 - API Key 由你手动填入、仅存本机 localStorage，**不写进代码、不上传服务器**；页面仅供个人自用，勿公开分享链接
-- 识别过程：硅基流动模型为浏览器**直连**；NVIDIA 模型经你的代理转发；图片不经过本站 GitHub 服务器
+- 识别过程：全部为浏览器**直连**各厂商 API，不经过任何代理或第三方服务器
 
 ## 自定义
 - 改表头/提示词：编辑 `js/prompt.js` 与 `js/excel.js` 的 `EXCEL_HEADERS`
