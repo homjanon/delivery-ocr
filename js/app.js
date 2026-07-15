@@ -25,7 +25,7 @@
     },
     sensenova: {
       name: "商汤 SenseNova 6.7 Flash-Lite（视觉·免费·直连✅）",
-      baseUrl: "https://api.sensenova.cn/v1/llm/chat-completions",
+      baseUrl: "https://token.sensenova.cn/v1/chat/completions",
       model: "sensenova-6.7-flash-lite", key: "sensenova", vendor: "sensenova"
     },
   };
@@ -82,12 +82,17 @@
 
   // 从模型回复中提取 JSON 数组
   function extractJSON(text) {
-    let t = text.trim();
+    let t = (text || "").trim();
+    t = t.replace(/<think>[\s\S]*?<\/think>/gi, "");
     const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (fence) t = fence[1].trim();
     const s = t.indexOf("["), e = t.lastIndexOf("]");
     if (s !== -1 && e !== -1 && e > s) t = t.slice(s, e + 1);
-    return JSON.parse(t);
+    if (!t) throw new Error("模型未输出任何内容");
+    try { return JSON.parse(t); }
+    catch (err) {
+      throw new Error("JSON 不完整/被截断（可能触及 max_tokens）：" + err.message);
+    }
   }
 
   // ——— 主流程：识别 ———
@@ -121,9 +126,7 @@
     }
 
     // 图像部分：商汤 SenseNova 格式为字符串；其余为 {url: ...}
-    const imgParts = images.map(b64 => cfg.vendor === "sensenova"
-      ? { type: "image_url", image_url: b64 }
-      : { type: "image_url", image_url: { url: b64 } });
+    const imgParts = images.map(b64 => ({ type: "image_url", image_url: { url: b64 } }));
 
     // 消息构造：标准 system（提示词）+ user（指令 + 图片）
     const messages = [
@@ -135,10 +138,9 @@
     log("POST " + baseUrl + "  model=" + model);
     try {
       const body = { model, messages, temperature: 0 };
-      if (cfg.vendor === "sensenova") {
-        body.max_new_tokens = 2048;
-      } else {
-        body.max_tokens = 2048;
+      body.max_tokens = 4096;
+      if (cfg.key !== "sensenova") {
+        body.chat_template_kwargs = { enable_thinking: false };
       }
       const resp = await fetch(baseUrl, {
         method: "POST",
@@ -155,8 +157,8 @@
       let raw;
       if (cfg.vendor === "sensenova") {
         if (data.error) throw new Error("商汤错误：" + (data.error.message || JSON.stringify(data.error)));
-        if (data.status && data.status.code !== 0) throw new Error("商汤状态：" + (data.status.message || data.status.code));
-        raw = data?.data?.choices?.[0]?.message || "";
+        const msg = data?.choices?.[0]?.message || {};
+        raw = msg.content || msg.reasoning || "";
       } else {
         raw = data?.choices?.[0]?.message?.content || "";
       }
