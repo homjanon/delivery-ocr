@@ -58,11 +58,12 @@
 | 项目 | 说明 |
 |------|------|
 | 形态 | 命令行 / Tkinter 桌面 GUI，输出 `送货单_日期.xlsx` |
-| 系统 | Windows 7（需 Python 3.9）/ Windows 10（Python 3.9 或 3.11） |
+| 系统 | Windows 7（需 Python 3.9）/ Windows 10（Python 3.9 或 3.11）/ **Android（Termux，直接跑源码）** |
 | CORS | 无限制，商汤亦可接 |
 | 打包 | PyInstaller 打成 exe 双击运行（见 `local/打包说明.md`） |
 
 > **打包一次、两套通用**：用 **Python 3.9** 打的 exe（可在 Win10 上装 3.9 打包），**Win7 与 Win10 都能直接双击用**，Win7 端无需安装 Python。切勿用 Python 3.11 打包（Win7 跑不了）。
+> **安卓**：用 Termux 终端直接跑 `ocr_delivery.py`（无需打包），商汤等任意模型可接；步骤见 `local/打包说明.md` 第五节。
 
 入口与完整用法见 **[`local/打包说明.md`](local/打包说明.md)**。
 
