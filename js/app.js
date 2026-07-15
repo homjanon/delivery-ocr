@@ -7,9 +7,8 @@
   let lastWorkbook = null;
 
   // 模型预设（baseUrl 已含完整 /chat/completions 端点，调用时直接 fetch(baseUrl)）
-  //   key      : 对应 API Key 输入框 id 前缀（zhipu → #zhipuApiKey）
-  //   vendor   : 'sensenova' 时走商汤专属格式（image_url 为字符串；回复在 data.choices[0].message）
-  //   grounding: true 时把系统提示词放进 user 消息（DeepSeek-OCR 等 OCR 专用模型）
+  //   key   : 对应 API Key 输入框 id 前缀（zhipu → #zhipuApiKey）
+  //   vendor: 'sensenova' 时走商汤专属格式（image_url 为字符串；回复在 data.choices[0].message）
   const MODEL_PRESETS = {
     zhipu: {
       name: "智谱 GLM-4.6V-Flash（视觉·直连✅）",
@@ -22,19 +21,14 @@
       model: "SenseNova-U1", key: "sensenova", vendor: "sensenova"
     },
     qwen35: {
-      name: "硅基流动 Qwen3.5-4B（视觉·直连✅）",
+      name: "硅基流动 Qwen2.5-VL-72B（视觉·推荐·直连✅）",
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
-      model: "Qwen/Qwen3.5-4B", key: "siliconflow"
+      model: "Qwen/Qwen2.5-VL-72B", key: "siliconflow"
     },
     sfocr: {
       name: "硅基流动 DeepSeek-OCR（OCR专用·免费·直连✅）",
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
-      model: "deepseek-ai/DeepSeek-OCR", key: "siliconflow", grounding: true
-    },
-    dsv4: {
-      name: "硅基流动 DeepSeek-V4-Flash（视觉·直连✅）",
-      baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
-      model: "deepseek-ai/DeepSeek-V4-Flash", key: "siliconflow"
+      model: "deepseek-ai/DeepSeek-OCR", key: "siliconflow"
     },
   };
 
@@ -130,23 +124,11 @@
       ? { type: "image_url", image_url: b64 }
       : { type: "image_url", image_url: { url: b64 } });
 
-    // 消息构造：DeepSeek-OCR 等 OCR 专用模型把提示词放进 user 消息（不放 <|grounding|> 避免 <|ref|> 污染 JSON）；
-    // 其余模型用标准 system + user 结构。
-    let messages;
-    if (cfg.grounding) {
-      messages = [{
-        role: "user",
-        content: [
-          { type: "text", text: SYSTEM_PROMPT + "\n请按上述提示词识别以下送货单图片，严格输出 JSON 数组。" },
-          ...imgParts
-        ]
-      }];
-    } else {
-      messages = [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: [{ type: "text", text: "请识别以下送货单图片，严格按系统提示词输出 JSON 数组。" }, ...imgParts] }
-      ];
-    }
+    // 消息构造：标准 system（提示词）+ user（指令 + 图片）
+    const messages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: [{ type: "text", text: "请识别以下送货单图片，严格按系统提示词输出 JSON 数组。" }, ...imgParts] }
+    ];
 
     setStatus("调用模型中…");
     log("POST " + baseUrl + "  model=" + model);

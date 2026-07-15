@@ -16,11 +16,10 @@
 |---|---|---|---|
 | **智谱 GLM-4.6V-Flash** | 智谱 Key | `open.bigmodel.cn/api/paas/v4/chat/completions` | ✅ |
 | **商汤 SenseNova U1** | 商汤 Token | `api.sensenova.cn/v1/llm/chat-completions` | ✅ |
-| **硅基流动 Qwen3.5-4B** | 硅基流动 Key | `api.siliconflow.cn/v1/chat/completions` | ✅ |
+| **硅基流动 Qwen2.5-VL-72B** | 硅基流动 Key（同框） | `api.siliconflow.cn/v1/chat/completions` | ✅ |
 | **硅基流动 DeepSeek-OCR** | 硅基流动 Key（同框） | `api.siliconflow.cn/v1/chat/completions` | ✅（OCR 专用·免费） |
-| **硅基流动 DeepSeek-V4-Flash** | 硅基流动 Key（同框） | `api.siliconflow.cn/v1/chat/completions` | ✅ |
 
-> 四家接口（智谱 / 商汤 / 硅基流动）均经实测：OPTIONS 预检返回 `Access-Control-Allow-Origin`，浏览器可**直连**，国内无需任何代理。
+> 三家接口（智谱 / 商汤 / 硅基流动）均经实测：OPTIONS 预检返回 `Access-Control-Allow-Origin`，浏览器可**直连**，国内无需任何代理。
 > 商汤接口格式与 OpenAI 略有差异（图片以字符串传入、回复在 `data.choices[0].message`），站点已做适配，无需你关心。
 > 默认预设为**智谱 GLM-4.6V-Flash**。
 
