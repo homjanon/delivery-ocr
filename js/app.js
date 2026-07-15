@@ -135,7 +135,7 @@
     log("POST " + baseUrl + "  model=" + model);
     try {
       const body = { model, messages, temperature: 0 };
-      body.max_tokens = cfg.key === "qwen35b" ? 4096 : 8192;
+      body.max_tokens = 8192;
       body.chat_template_kwargs = { enable_thinking: false };
       const MAX_RETRIES = 2;
       let resp, data;
