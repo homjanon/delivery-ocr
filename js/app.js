@@ -140,15 +140,15 @@
       setStatus("图片处理失败：" + err.message); $("runBtn").disabled = false; return;
     }
 
-    // 构造消息：DeepSeek-OCR 等 OCR 专用模型指令需放在 user 消息（带 <|grounding|> 前缀），
-    // 不单独用 system 角色；其余模型用 system + user 标准结构。
+    // 构造消息：DeepSeek-OCR 等 OCR 专用模型指令需放在 user 消息（不单独用 system 角色）；
+    // 注意：不放 <|grounding|> 前缀，避免返回 <|ref|> 标签污染 JSON。其余模型用 system + user 标准结构。
     const imgParts = images.map(b64 => ({ type: "image_url", image_url: { url: b64 } }));
     let messages;
     if (MODEL_PRESETS[preset] && MODEL_PRESETS[preset].grounding) {
       messages = [{
         role: "user",
         content: [
-          { type: "text", text: "<|grounding|>\n" + SYSTEM_PROMPT + "\n请按上述提示词识别以下送货单图片，严格输出 JSON 数组。" },
+          { type: "text", text: SYSTEM_PROMPT + "\n请按上述提示词识别以下送货单图片，严格输出 JSON 数组。" },
           ...imgParts
         ]
       }];
