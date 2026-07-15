@@ -13,11 +13,7 @@
       baseUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
       model: "glm-4.6v-flash", key: "zhipu"
     },
-    qwen35: {
-      name: "硅基流动 Qwen3.5-397B-A17B（视觉·付费·直连✅）",
-      baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
-      model: "Qwen/Qwen3.5-397B-A17B", key: "siliconflow"
-    },
+
     qwen35b: {
       name: "硅基流动 Qwen3.5-35B-A3B（视觉·便宜·直连✅）",
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
