@@ -111,6 +111,13 @@
     $("runBtn").disabled = true;
     setStatus("压缩图片中…");
 
+    // 执行总耗时计时（点击开始 → 完成停表）
+    const elapsedEl = $("elapsed");
+    const t0 = Date.now();
+    const tick = () => { elapsedEl.textContent = "⏱ " + ((Date.now() - t0) / 1000).toFixed(1) + "s"; };
+    elapsedEl.textContent = "⏱ 计时中…";
+    const timer = setInterval(tick, 200);
+
     let images;
     try {
       // 多图时自动降低压缩质量与分辨率，避免免费层限流
@@ -119,7 +126,9 @@
       images = await Promise.all(files.map(f => compressImage(f, maxDim, quality)));
       log(`已压缩 ${images.length} 张图片（maxDim=${maxDim} quality=${quality}）`);
     } catch (err) {
-      setStatus("图片处理失败：" + err.message); $("runBtn").disabled = false; return;
+      setStatus("图片处理失败：" + err.message); $("runBtn").disabled = false;
+      clearInterval(timer); tick();
+      return;
     }
 
     // 图像部分：统一 {url: ...} 格式送图
@@ -181,6 +190,8 @@
       log("错误：" + err.message);
       setStatus("失败：" + err.message);
     } finally {
+      clearInterval(timer);
+      tick();
       $("runBtn").disabled = false;
     }
   });
