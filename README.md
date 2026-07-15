@@ -15,7 +15,7 @@
 | 预设 | Key 框 | 端点 | 视觉? |
 |---|---|---|---|
 | **智谱 GLM-4.6V-Flash** | 智谱 Key | `open.bigmodel.cn/api/paas/v4/chat/completions` | ✅ |
-| **商汤 SenseNova U1** | 商汤 Token | `api.sensenova.cn/v1/llm/chat-completions` | ✅ |
+| **商汤 SenseNova 6.7 Flash-Lite** | 商汤 Token | `api.sensenova.cn/v1/llm/chat-completions` | ✅ |
 | **硅基流动 Qwen2.5-VL-72B** | 硅基流动 Key（同框） | `api.siliconflow.cn/v1/chat/completions` | ✅ |
 | **硅基流动 DeepSeek-OCR** | 硅基流动 Key（同框） | `api.siliconflow.cn/v1/chat/completions` | ✅（OCR 专用·免费） |
 

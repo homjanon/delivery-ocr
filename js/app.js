@@ -16,9 +16,9 @@
       model: "glm-4.6v-flash", key: "zhipu"
     },
     sensenova: {
-      name: "商汤 SenseNova U1（视觉·直连✅）",
+      name: "商汤 SenseNova 6.7 Flash-Lite（视觉·直连✅）",
       baseUrl: "https://api.sensenova.cn/v1/llm/chat-completions",
-      model: "SenseNova-U1", key: "sensenova", vendor: "sensenova"
+      model: "sensenova-6.7-flash-lite", key: "sensenova", vendor: "sensenova"
     },
     qwen35: {
       name: "硅基流动 Qwen2.5-VL-72B（视觉·推荐·直连✅）",
