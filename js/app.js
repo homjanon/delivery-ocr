@@ -6,22 +6,26 @@
   let lastWorkbook = null;
   let _baseUrl = "", _model = "";
 
-  // CORS 代理（自建 Cloudflare Worker）：浏览器无法直接访问 *.github.io → NVIDIA/SiliconFlow，
-  // 必须经 Worker 转发 POST 体与 Authorization 头。?url= 内放完整端点（已 encodeURIComponent）。
+  // 端点说明：
+  //  · 硅基流动 api.siliconflow.cn 原生支持 CORS（预检返回 Access-Control-Allow-Origin: *），
+  //    浏览器可直连，无需任何代理 → SF_DIRECT。
+  //  · NVIDIA integrate.api.nvidia.com 的预检不带 ACAO，浏览器无法直连，必须走代理。
+  //    默认走 Cloudflare Worker，但 Cloudflare 在国内常被墙；如需国内可用，把 WORKER 改成
+  //    你自建的国内可达代理（阿里云函数计算 / 腾讯云函数等部署 proxy-worker.js 的地址）。
   const WORKER = "https://cors-proxy.homjanon.workers.dev/?url=";
   const nvidiaEp = encodeURIComponent("https://integrate.api.nvidia.com/v1/chat/completions");
-  const sfEp = encodeURIComponent("https://api.siliconflow.cn/v1/chat/completions");
+  const SF_DIRECT = "https://api.siliconflow.cn/v1/chat/completions";
 
   // 模型预设（baseUrl 已含完整 /chat/completions 端点，调用时直接 fetch(baseUrl)）
   const MODEL_PRESETS = {
-    glm52: { name: "NVIDIA GLM-5.2（视觉·推荐）",
+    sfds: { name: "硅基流动 Qwen2.5-VL-72B（视觉·直连✅）",
+      baseUrl: SF_DIRECT, model: "Qwen/Qwen2.5-VL-72B-Instruct" },
+    sfocr: { name: "硅基流动 DeepSeek-OCR（OCR专用·免费·直连✅）",
+      baseUrl: SF_DIRECT, model: "deepseek-ai/DeepSeek-OCR", grounding: true },
+    glm52: { name: "NVIDIA GLM-5.2（需国内可达代理）",
       baseUrl: WORKER + nvidiaEp, model: "z-ai/glm-5.2" },
-    qw397: { name: "NVIDIA Qwen 3.5-397B VLM（视觉·推荐）",
+    qw397: { name: "NVIDIA Qwen 3.5-397B VLM（需国内可达代理）",
       baseUrl: WORKER + nvidiaEp, model: "qwen/qwen3.5-397b-a17b" },
-    sfds: { name: "硅基流动 Qwen2.5-VL-72B（视觉·兜底）",
-      baseUrl: WORKER + sfEp, model: "Qwen/Qwen2.5-VL-72B-Instruct" },
-    sfocr: { name: "硅基流动 DeepSeek-OCR（OCR专用·免费）",
-      baseUrl: WORKER + sfEp, model: "deepseek-ai/DeepSeek-OCR", grounding: true },
   };
 
   function log(msg) { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
@@ -52,8 +56,8 @@
     $("preset").value = savedPreset;
     applyPreset(savedPreset, false);
   } else {
-    $("preset").value = "glm52";
-    applyPreset("glm52", false);
+    $("preset").value = "sfds";
+    applyPreset("sfds", false);
   }
   if (savedBaseUrl && savedPreset === "custom") { _baseUrl = savedBaseUrl; }
   if (savedModel && savedPreset === "custom") { _model = savedModel; }

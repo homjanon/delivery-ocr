@@ -12,15 +12,15 @@
 ## 模型预设
 页面下拉直接切换（移植自 `portfolio/scripts/call_llm.py`）：
 
-| 预设 | Key 框 | 端点（经 Worker 代理） | 视觉? |
-|---|---|---|---|
-| **NVIDIA GLM-5.2**（默认，推荐） | NVIDIA Key | `integrate.api.nvidia.com/v1` | ✅ |
-| **NVIDIA Qwen 3.5-397B VLM** | NVIDIA Key（同 Key） | `integrate.api.nvidia.com/v1` | ✅ |
-| **硅基流动 Qwen2.5-VL-72B** | 硅基流动 Key | `api.siliconflow.cn/v1` | ✅ |
-| **硅基流动 DeepSeek-OCR** | 硅基流动 Key（同 Key） | `api.siliconflow.cn/v1` | ✅（OCR 专用·免费） |
+| 预设 | Key 框 | 端点 | 视觉? | 国内可用 |
+|---|---|---|---|---|
+| **硅基流动 Qwen2.5-VL-72B** | 硅基流动 Key | `api.siliconflow.cn/v1`（直连✅） | ✅ | ✅ 直连 |
+| **硅基流动 DeepSeek-OCR** | 硅基流动 Key（同 Key） | `api.siliconflow.cn/v1`（直连✅） | ✅（OCR 专用·免费） | ✅ 直连 |
+| **NVIDIA GLM-5.2** | NVIDIA Key | `integrate.api.nvidia.com/v1`（需代理） | ✅ | ⚠️ 需国内可达代理 |
+| **NVIDIA Qwen 3.5-397B VLM** | NVIDIA Key（同 Key） | `integrate.api.nvidia.com/v1`（需代理） | ✅ | ⚠️ 需国内可达代理 |
 
-> 前两个共用同一个 NVIDIA Key，免费。硅基流动需在其平台注册获取 Key。
-> **所有请求均经自建 Cloudflare Worker（`cors-proxy.homjanon.workers.dev`）转发**——浏览器无法直连 NVIDIA/SiliconFlow（CORS 限制），Worker 负责透传 POST 请求体与 Authorization 头。Worker 源码见 `homjanon.github.io/proxy-worker.js`，需自行部署到 Cloudflare。
+> 硅基流动接口原生支持 CORS（预检返回 `Access-Control-Allow-Origin: *`），浏览器可**直连**，无需任何代理，国内立即可用（默认预设已设为硅基流动）。
+> NVIDIA 接口 OPTIONS 预检不带 CORS 头，浏览器无法直连，必须走代理。默认走 `cors-proxy.homjanon.workers.dev`，但 **Cloudflare 在大陆常被墙**；如需在国内用 NVIDIA，把 `app.js` 顶部 `WORKER` 常量改为你自建的国内可达代理地址（在阿里云函数计算 / 腾讯云函数部署 `proxy-worker.js`）。
 
 ## 使用
 1. GitHub Pages 打开站点
@@ -33,16 +33,14 @@
 - 仓库根目录即站点根；Settings → Pages → Source 选 `main` 分支 `/ (root)`
 - 推送后自动生效，无需构建
 
-## CORS 代理（必读）
-静态站点部署在 `*.github.io`，浏览器的同源策略**禁止**直接 `fetch` `integrate.api.nvidia.com` / `api.siliconflow.cn`（会报 `Failed to fetch` / CORS 错误）。解决方案是经一个自建的 Cloudflare Worker 转发：
+## 关于 CORS 与代理（国内用户必读）
+- **硅基流动 `api.siliconflow.cn`**：预检返回 `Access-Control-Allow-Origin: *`，浏览器可**直连**，无需代理。
+- **NVIDIA `integrate.api.nvidia.com`**：OPTIONS 预检不带 CORS 头，浏览器禁止直连，必须走代理转发 POST 体与 Authorization。
+- **代理选型**：`proxy-worker.js` 是标准 JS（fetch + CORS 透传），可部署到任何支持 Web 标准的运行时：
+  1. Cloudflare Workers（已部署 `cors-proxy.homjanon.workers.dev`）——但 **Cloudflare 在大陆常被墙**，从国内访问会 `Failed to fetch`；
+  2. 国内可达替代：阿里云函数计算 FC / 腾讯云云函数 SCF / 自有国内服务器。部署后把 `app.js` 的 `WORKER` 常量改成你的地址（`?url=` 内放完整端点，需 encodeURIComponent）。
 
-1. 源码：`homjanon.github.io/proxy-worker.js`（已升级为支持 POST + 透传 Authorization 头）
-2. 部署：Cloudflare 控制台 → Workers → 粘贴代码 → Deploy，得到 `https://cors-proxy.homjanon.workers.dev`
-   （或 `wrangler deploy`，仓库根放 `wrangler.toml` 指向该文件）
-3. 站点 `js/app.js` 的 `MODEL_PRESETS` 已把三个模型端点写成经该 Worker 转发的完整 URL，**无需再手动配置**
-4. 若你换了自己的 Worker 域名，只改 `app.js` 顶部 `WORKER` 常量一处即可
-
-> 免责：个人自用 Worker，请求经它中转（含你的 API Key），请确保 Worker 不被他人滥用。
+> `proxy-worker.js` 源码见 `homjanon.github.io/proxy-worker.js`。个人自用代理，请求经它中转（含你的 API Key），请确保不被他人滥用。
 
 ## 文件结构
 ```
@@ -58,7 +56,7 @@ delivery-ocr/
 
 ## 安全说明
 - API Key 由你手动填入、仅存本机 localStorage，**不写进代码、不上传服务器**；页面仅供个人自用，勿公开分享链接
-- 识别过程为浏览器 → 你的 Worker → 模型接口，图片不经过本站 GitHub 服务器
+- 识别过程：硅基流动模型为浏览器**直连**；NVIDIA 模型经你的代理转发；图片不经过本站 GitHub 服务器
 
 ## 自定义
 - 改表头/提示词：编辑 `js/prompt.js` 与 `js/excel.js` 的 `EXCEL_HEADERS`
