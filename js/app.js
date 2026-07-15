@@ -23,11 +23,7 @@
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
       model: "Qwen/Qwen3.5-35B-A3B", key: "siliconflow"
     },
-    sensenova: {
-      name: "商汤 SenseNova 6.7 Flash-Lite（视觉·免费·直连✅）",
-      baseUrl: "https://token.sensenova.cn/v1/chat/completions",
-      model: "sensenova-6.7-flash-lite", key: "sensenova", vendor: "sensenova"
-    },
+
   };
 
   function log(msg) { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
@@ -41,7 +37,7 @@
   $("preset").value = (savedPreset && MODEL_PRESETS[savedPreset]) ? savedPreset : "zhipu";
 
   // 恢复 API Key（持久化）：zhipu / siliconflow / sensenova
-  ["zhipu", "siliconflow", "sensenova"].forEach(k => {
+  ["zhipu", "siliconflow"].forEach(k => {
     const el = $(k + "ApiKey");
     el.value = localStorage.getItem("do_" + k + "Key") || "";
     el.addEventListener("input", () => localStorage.setItem("do_" + k + "Key", el.value));
@@ -125,7 +121,7 @@
       setStatus("图片处理失败：" + err.message); $("runBtn").disabled = false; return;
     }
 
-    // 图像部分：商汤 SenseNova 格式为字符串；其余为 {url: ...}
+    // 图像部分：统一 {url: ...} 格式送图
     const imgParts = images.map(b64 => ({ type: "image_url", image_url: { url: b64 } }));
 
     // 消息构造：标准 system（提示词）+ user（指令 + 图片）
@@ -139,29 +135,29 @@
     try {
       const body = { model, messages, temperature: 0 };
       body.max_tokens = 4096;
-      if (cfg.key !== "sensenova") {
-        body.chat_template_kwargs = { enable_thinking: false };
-      }
-      const resp = await fetch(baseUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
-        body: JSON.stringify(body)
-      });
-      if (!resp.ok) {
+      body.chat_template_kwargs = { enable_thinking: false };
+      const MAX_RETRIES = 2;
+      let resp, data;
+      for (let i = 0; i <= MAX_RETRIES; i++) {
+        resp = await fetch(baseUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
+          body: JSON.stringify(body)
+        });
+        if (resp.ok) break;
         const errText = await resp.text();
+        if (i < MAX_RETRIES && [429, 502, 503, 504].includes(resp.status)) {
+          const wait = (i + 1) * 2000;
+          log(`服务繁忙（${resp.status}），${wait/1000}秒后重试…`);
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
         throw new Error("HTTP " + resp.status + " " + errText.slice(0, 300));
       }
-      const data = await resp.json();
+      data = await resp.json();
 
-      // 解析回复：商汤在 data.choices[0].message（字符串）；其余标准 OpenAI
-      let raw;
-      if (cfg.vendor === "sensenova") {
-        if (data.error) throw new Error("商汤错误：" + (data.error.message || JSON.stringify(data.error)));
-        const msg = data?.choices?.[0]?.message || {};
-        raw = msg.content || msg.reasoning || "";
-      } else {
-        raw = data?.choices?.[0]?.message?.content || "";
-      }
+      // 解析回复：标准 OpenAI 格式
+      let raw = data?.choices?.[0]?.message?.content || "";
       log("模型返回（前 200 字）：\n" + raw.slice(0, 200));
 
       let rows;
