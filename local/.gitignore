@@ -1,0 +1,7 @@
+# 不提交密钥与产物
+.env
+*.xlsx
+__pycache__/
+dist/
+build/
+*.spec
