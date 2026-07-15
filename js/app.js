@@ -20,6 +20,8 @@
       baseUrl: WORKER + nvidiaEp, model: "qwen/qwen3.5-397b-a17b" },
     sfds: { name: "硅基流动 Qwen2.5-VL-72B（视觉·兜底）",
       baseUrl: WORKER + sfEp, model: "Qwen/Qwen2.5-VL-72B-Instruct" },
+    sfocr: { name: "硅基流动 DeepSeek-OCR（OCR专用·免费）",
+      baseUrl: WORKER + sfEp, model: "deepseek-ai/DeepSeek-OCR", grounding: true },
   };
 
   function log(msg) { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
@@ -113,7 +115,7 @@
     const baseUrl = _baseUrl.replace(/\/$/, "");
     // 按预设自动选取对应的 API Key 框
     const preset = $("preset").value;
-    const apiKey = (preset === "sfds") ? $("siliconflowApiKey").value.trim() : $("nvidiaApiKey").value.trim();
+    const apiKey = (preset === "sfds" || preset === "sfocr") ? $("siliconflowApiKey").value.trim() : $("nvidiaApiKey").value.trim();
     const model = _model.trim();
     const files = [...$("fileInput").files];
 
@@ -138,8 +140,24 @@
       setStatus("图片处理失败：" + err.message); $("runBtn").disabled = false; return;
     }
 
-    const content = [{ type: "text", text: "请识别以下送货单图片，严格按系统提示词输出 JSON 数组。" }];
-    images.forEach(b64 => content.push({ type: "image_url", image_url: { url: b64 } }));
+    // 构造消息：DeepSeek-OCR 等 OCR 专用模型指令需放在 user 消息（带 <|grounding|> 前缀），
+    // 不单独用 system 角色；其余模型用 system + user 标准结构。
+    const imgParts = images.map(b64 => ({ type: "image_url", image_url: { url: b64 } }));
+    let messages;
+    if (MODEL_PRESETS[preset] && MODEL_PRESETS[preset].grounding) {
+      messages = [{
+        role: "user",
+        content: [
+          { type: "text", text: "<|grounding|>\n" + SYSTEM_PROMPT + "\n请按上述提示词识别以下送货单图片，严格输出 JSON 数组。" },
+          ...imgParts
+        ]
+      }];
+    } else {
+      messages = [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: [{ type: "text", text: "请识别以下送货单图片，严格按系统提示词输出 JSON 数组。" }, ...imgParts] }
+      ];
+    }
 
     setStatus("调用模型中…");
     log("POST " + baseUrl + "  model=" + model);
@@ -149,10 +167,7 @@
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
         body: JSON.stringify({
           model,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content }
-          ],
+          messages,
           temperature: 0
         })
       });

@@ -17,6 +17,7 @@
 | **NVIDIA GLM-5.2**（默认，推荐） | NVIDIA Key | `integrate.api.nvidia.com/v1` | ✅ |
 | **NVIDIA Qwen 3.5-397B VLM** | NVIDIA Key（同 Key） | `integrate.api.nvidia.com/v1` | ✅ |
 | **硅基流动 Qwen2.5-VL-72B** | 硅基流动 Key | `api.siliconflow.cn/v1` | ✅ |
+| **硅基流动 DeepSeek-OCR** | 硅基流动 Key（同 Key） | `api.siliconflow.cn/v1` | ✅（OCR 专用·免费） |
 
 > 前两个共用同一个 NVIDIA Key，免费。硅基流动需在其平台注册获取 Key。
 > **所有请求均经自建 Cloudflare Worker（`cors-proxy.homjanon.workers.dev`）转发**——浏览器无法直连 NVIDIA/SiliconFlow（CORS 限制），Worker 负责透传 POST 请求体与 Authorization 头。Worker 源码见 `homjanon.github.io/proxy-worker.js`，需自行部署到 Cloudflare。
