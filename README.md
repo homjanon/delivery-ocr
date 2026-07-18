@@ -29,8 +29,9 @@
 |---|---|---|---|---|
 | **智谱 GLM-4.6V-Flash** | 智谱 Key | `open.bigmodel.cn/api/paas/v4/chat/completions` | ✅ | 免费（有时限流） |
 | **硅基流动 Qwen3.5-35B-A3B** | 硅基流动 Key | `api.siliconflow.cn/v1/chat/completions` | ✅ | 付费·便宜 |
+| **Agnes 2.0-Flash** | Agnes Key | `apihub.agnes-ai.com/v1/chat/completions` | ✅ | 免费（无限期·高峰排队） |
 
-> 默认预设为**智谱 GLM-4.6V-Flash**（免费）。两个模型均关闭思考模式（`enable_thinking:false`）并设 `max_tokens:8192`，避免 JSON 被截断。
+> 默认预设为**智谱 GLM-4.6V-Flash**（免费）；**Agnes 2.0-Flash** 同为免费可选项（无限期免费，高峰偶有排队）。三个模型均关闭思考模式（`enable_thinking:false`）并设 `max_tokens:8192`，避免 JSON 被截断。
 > 历史上曾内置「硅基流动 Qwen3.5-397B-A17B」「商汤 SenseNova」两个预设，已移除（原因见下文 CORS 说明）。
 
 ### 使用
@@ -45,7 +46,8 @@
 - 推送后自动生效，无需构建
 
 ### 关于 CORS（重要）
-- **智谱、硅基流动** 均实测支持浏览器直连：OPTIONS 预检返回 `Access-Control-Allow-Origin` 及 `Allow-Headers`（含 `Authorization`、`Content-Type`），浏览器可直接 `fetch`，**无需代理**。
+- **智谱、硅基流动、Agnes** 均实测支持浏览器直连：OPTIONS 预检返回 `Access-Control-Allow-Origin` 及 `Allow-Headers`（含 `Authorization`、`Content-Type`），浏览器可直接 `fetch`，**无需代理**。
+- **Agnes 端点域名注意**：必须用 `apihub.agnes-ai.com`（实测 OPTIONS 预检 `Access-Control-Allow-Origin: *`）。其另一域名 `api.agnes-ai.com` 预检返回 404、**无 CORS 头**，浏览器直连会失败，切勿使用。Agnes 2.0-Flash 实测**支持 base64 `data:` 内联图片**（与本项目发送方式一致），且免费无限期开放。
 - **商汤 SenseNova 不支持浏览器直连**：其 Token 端点 OPTIONS 预检返回 404，浏览器报 `Failed to fetch`，因此**网页版已移除商汤预设**。若需使用商汤，请改用 [`local/` 本地版](local/打包说明.md)（后端调用无 CORS 限制，商汤可接）。
 - 这是从 Cloudflare Workers（国内被墙）切换为国内厂商直连的根本原因：流程更简洁、零基础设施成本。
 

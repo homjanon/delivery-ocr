@@ -19,6 +19,12 @@
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
       model: "Qwen/Qwen3.5-35B-A3B", key: "siliconflow"
     },
+
+    agnes: {
+      name: "Agnes 2.0-Flash（视觉·免费·直连✅）",
+      baseUrl: "https://apihub.agnes-ai.com/v1/chat/completions",
+      model: "agnes-2.0-flash", key: "agnes"
+    },
   };
 
   function log(msg) { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
@@ -32,7 +38,7 @@
   $("preset").value = (savedPreset && MODEL_PRESETS[savedPreset]) ? savedPreset : "zhipu";
 
   // 恢复 API Key（持久化）：zhipu / siliconflow
-  ["zhipu", "siliconflow"].forEach(k => {
+  ["zhipu", "siliconflow", "agnes"].forEach(k => {
     const el = $(k + "ApiKey");
     el.value = localStorage.getItem("do_" + k + "Key") || "";
     el.addEventListener("input", () => localStorage.setItem("do_" + k + "Key", el.value));
