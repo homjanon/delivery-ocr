@@ -93,14 +93,31 @@
     }
   }
 
-  // 容错归一化：模型偶发输出 JSON 对象而非数组时，自动提取数组字段 / 包成单元素数组
-  function normalizeRows(v) {
+  // 多级容错归一化：数组→直接用；对象→取数组字段/包成单元素；字符串→原文重截取 [..]/{..} 再解析；全部失败返回 null
+  function normalizeRows(v, raw) {
     if (Array.isArray(v)) return v;
     if (v && typeof v === "object") {
       for (const k of Object.keys(v)) {
         if (Array.isArray(v[k])) return v[k];
       }
       return [v];
+    }
+    const text = (typeof raw === "string" && raw.trim()) ? raw : (typeof v === "string" ? v : "");
+    if (text) {
+      const arrM = text.match(/\[[\s\S]*\]/);
+      if (arrM) {
+        try { const a = JSON.parse(arrM[0]); if (Array.isArray(a)) return a; } catch (e) {}
+      }
+      const objM = text.match(/\{[\s\S]*\}/);
+      if (objM) {
+        try {
+          const o = JSON.parse(objM[0]);
+          if (o && typeof o === "object") {
+            for (const k of Object.keys(o)) { if (Array.isArray(o[k])) return o[k]; }
+            return [o];
+          }
+        } catch (e) {}
+      }
     }
     return null;
   }
@@ -161,7 +178,7 @@
         }
         if (!full) return { error: "empty" };
         if (opts.json) {
-          try { return { content: extractJSON(full) }; }
+          try { return { content: extractJSON(full), raw: full }; }
           catch (e) { return { error: "json", content: full, msg: e.message }; }
         }
         return { content: full };
@@ -171,7 +188,7 @@
     const c = (j && j.choices && j.choices[0] && j.choices[0].message) ? (j.choices[0].message.content || j.choices[0].message.reasoning || "") : "";
     if (c === "") return { error: "empty", raw: j };
     if (opts.json) {
-      try { return { content: extractJSON(c) }; }
+      try { return { content: extractJSON(c), raw: c }; }
       catch (e) { return { error: "json", content: c, msg: e.message }; }
     }
     return { content: c };
@@ -270,14 +287,15 @@
     log("channel=" + cfg.name + "  model=" + cfg.model + (cfg.proxy ? "（经 Cloudflare 代理）" : "（直连）"));
     try {
       const r = await callLLM(messages, {
+        json: true,
         onToken: (t, full) => {
           if (streamBox) { streamBox.textContent = full; streamBox.scrollTop = streamBox.scrollHeight; }
         },
         onReset: () => { if (streamBox) streamBox.innerHTML = ""; }
       });
       if (r.error) throw new Error(errMsg(r));
-      const rows = normalizeRows(r.content);
-      if (!rows) throw new Error("返回不是数组（模型输出格式异常，请重试或换通道）");
+      const rows = normalizeRows(r.content, r.raw);
+      if (!rows) throw new Error("返回不是数组（模型输出格式异常）：模型原文前 200 字：\n" + String(r.raw || r.content || "").slice(0, 200));
 
       // 规整字段
       const norm = rows.map(r2 => {
