@@ -9,9 +9,9 @@
   // 模型预设（baseUrl 已含完整 /chat/completions 端点，调用时直接 fetch(baseUrl)）
   const MODEL_PRESETS = {
     zhipu: {
-      name: "智谱 GLM-4.6V-Flash（视觉·直连✅）",
+      name: "智谱 GLM-4.6v（视觉·免费·直连✅）",
       baseUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-      model: "glm-4.6v-flash", key: "zhipu"
+      model: "glm-4.6v", key: "zhipu"
     },
 
     qwen35b: {
@@ -21,9 +21,10 @@
     },
 
     agnes: {
-      name: "Agnes 2.0-Flash（视觉·免费·直连✅）",
+      name: "Agnes 2.0-Flash（视觉·免费·代理加速✅）",
       baseUrl: "https://apihub.agnes-ai.com/v1/chat/completions",
-      model: "agnes-2.0-flash", key: "agnes"
+      model: "agnes-2.0-flash", key: "agnes",
+      proxy: "https://proxy.hellohopo.dpdns.org/"
     },
   };
 
@@ -98,14 +99,117 @@
     }
   }
 
-  // ——— 主流程：识别 ———
+  // ——— CORS 代理（仅配置了 proxy 的预设使用）：代理?url=<目标> ———
+  function proxiedUrl(base, proxy) {
+    const p = (proxy || "").trim();
+    if (!p) return base;
+    const enc = encodeURIComponent(base);
+    if (p.indexOf("url=") >= 0) return p + enc;
+    return p + (p.indexOf("?") >= 0 ? "&" : "?") + "url=" + enc;
+  }
+
+  // ——— 单次调用（SSE 流式）：onToken(t, full) 增量回调 → 流式；否则非流式。90s（流式 120s）超时 ———
+  async function callLLMOnce(cfg, messages, opts) {
+    const stream = !!opts.onToken;
+    const body = { model: cfg.model, messages, temperature: 0 };
+    body.max_tokens = 8192;
+    body.chat_template_kwargs = { enable_thinking: false };
+    body.stream = stream;
+    const ctl = new AbortController();
+    const to = setTimeout(() => ctl.abort(), stream ? 120000 : 90000);
+    const url = (cfg.proxy && !opts.direct) ? proxiedUrl(cfg.baseUrl, cfg.proxy) : cfg.baseUrl;
+    let resp;
+    try {
+      resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.key }, body: JSON.stringify(body), signal: ctl.signal });
+    } catch (e) { clearTimeout(to); return { error: "net", msg: String(e) }; }
+    clearTimeout(to);
+    if (!resp.ok) { let t = ""; try { t = await resp.text(); } catch (_) {} return { error: "http", status: resp.status, msg: (t || "").slice(0, 300) }; }
+    if (stream) {
+      try {
+        if (!resp.body) return { error: "parse", msg: "no stream body" };
+        const reader = resp.body.getReader();
+        const dec = new TextDecoder();
+        let buf = "", full = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let idx;
+          while ((idx = buf.indexOf("\n")) >= 0) {
+            const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 1);
+            if (line.indexOf("data:") !== 0) continue;
+            const data = line.slice(5).trim();
+            if (!data || data === "[DONE]") continue;
+            try {
+              const j = JSON.parse(data);
+              const delta = (j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content) || "";
+              if (delta) { full += delta; opts.onToken(delta, full); }
+            } catch (e) {}
+          }
+        }
+        if (!full) return { error: "empty" };
+        if (opts.json) {
+          try { return { content: extractJSON(full) }; }
+          catch (e) { return { error: "json", content: full, msg: e.message }; }
+        }
+        return { content: full };
+      } catch (e) { return { error: "net", msg: String(e) }; }
+    }
+    let j; try { j = await resp.json(); } catch (e) { return { error: "parse", msg: String(e) }; }
+    const c = (j && j.choices && j.choices[0] && j.choices[0].message) ? (j.choices[0].message.content || j.choices[0].message.reasoning || "") : "";
+    if (c === "") return { error: "empty", raw: j };
+    if (opts.json) {
+      try { return { content: extractJSON(c) }; }
+      catch (e) { return { error: "json", content: c, msg: e.message }; }
+    }
+    return { content: c };
+  }
+
+  // ——— 带自动降级的调用：主通道失败 → 按预设顺序切备用（无 Key 跳过）；末位带代理的通道再补一次直连兜底 ———
+  async function callLLM(messages, opts) {
+    opts = opts || {};
+    const cur = $("preset").value;
+    const order = [cur].concat(Object.keys(MODEL_PRESETS).filter(p => p !== cur));
+    let lastErr = null;
+    for (let i = 0; i < order.length; i++) {
+      const p = order[i];
+      const cfg = MODEL_PRESETS[p];
+      const apiKey = $(cfg.key + "ApiKey").value.trim();
+      if (!apiKey) continue;
+      if (i > 0) {
+        if (opts.onReset) opts.onReset();
+        log("⚠️ 主通道不可用，自动切换 " + cfg.name);
+      }
+      const attempts = ((i === order.length - 1) && !!cfg.proxy) ? [false, true] : [false];
+      for (const direct of attempts) {
+        const r = await callLLMOnce(cfg, messages, Object.assign({}, opts, { direct }));
+        if (!r.error) return r;
+        lastErr = r;
+        if (direct) log("代理通道失败，直连兜底也失败：" + (r.msg || r.error));
+      }
+    }
+    return lastErr || { error: "nokey" };
+  }
+
+  function errMsg(e) {
+    const hints = {
+      nokey: "未配置可用的 API Key",
+      net: "网络/代理失败（Key 无效、代理不可达或浏览器拦截）",
+      http: "接口返回 " + (e.status || "") + "：" + (e.msg || ""),
+      json: "模型未按约定输出 JSON（" + (e.msg || "") + "）",
+      empty: "模型返回为空（可能服务繁忙/被限流）",
+      timeout: "请求超时，已自动尝试备用通道"
+    };
+    return (hints[e.error] || e.msg || e.error || "未知错误") + (e.content ? "\n（原文前 300 字：\n" + e.content.slice(0, 300) + "）" : "");
+  }
+
+  // ——— 主流程：识别（SSE 流式 + 自动降级） ———
   $("runBtn").addEventListener("click", async () => {
     const presetKey = $("preset").value;
     const cfg = MODEL_PRESETS[presetKey];
-    const baseUrl = cfg.baseUrl.replace(/\/$/, "");
-    const model = cfg.model;
     const apiKey = $(cfg.key + "ApiKey").value.trim();
     const files = [...$("fileInput").files];
+    const streamBox = $("streamBox");
 
     if (!apiKey) { setStatus("请填写对应模型的 API Key"); return; }
     if (!files.length) { setStatus("请先上传送货单图片"); return; }
@@ -114,6 +218,7 @@
     lastWorkbook = null;
     $("downloadBtn").disabled = true;
     $("tableWrap").innerHTML = "";
+    if (streamBox) { streamBox.style.display = "block"; streamBox.textContent = "等待模型输出…"; }
     $("runBtn").disabled = true;
     setStatus("压缩图片中…");
 
@@ -137,7 +242,7 @@
       return;
     }
 
-    // 图像部分：统一 {url: ...} 格式送图
+    // 图像部分：统一 {url: ...} 格式送图（base64 内联，Agnes 实测兼容）
     const imgParts = images.map(b64 => ({ type: "image_url", image_url: { url: b64 } }));
 
     // 消息构造：标准 system（提示词）+ user（指令 + 图片）
@@ -146,52 +251,31 @@
       { role: "user", content: [{ type: "text", text: "请识别以下送货单图片，严格按系统提示词输出 JSON 数组。" }, ...imgParts] }
     ];
 
-    setStatus("调用模型中…");
-    log("POST " + baseUrl + "  model=" + model);
+    setStatus("调用模型中（SSE 流式）…");
+    log("channel=" + cfg.name + "  model=" + cfg.model + (cfg.proxy ? "（经 Cloudflare 代理）" : "（直连）"));
     try {
-      const body = { model, messages, temperature: 0 };
-      body.max_tokens = 8192;
-      body.chat_template_kwargs = { enable_thinking: false };
-      const MAX_RETRIES = 2;
-      let resp, data;
-      for (let i = 0; i <= MAX_RETRIES; i++) {
-        resp = await fetch(baseUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
-          body: JSON.stringify(body)
-        });
-        if (resp.ok) break;
-        const errText = await resp.text();
-        if (i < MAX_RETRIES && [429, 502, 503, 504].includes(resp.status)) {
-          const wait = (i + 1) * 2000;
-          log(`服务繁忙（${resp.status}），${wait/1000}秒后重试…`);
-          await new Promise(r => setTimeout(r, wait));
-          continue;
-        }
-        throw new Error("HTTP " + resp.status + " " + errText.slice(0, 300));
-      }
-      data = await resp.json();
-
-      // 解析回复：标准 OpenAI 格式
-      let raw = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.message?.reasoning || "";
-      log("模型返回（前 200 字）：\n" + raw.slice(0, 200));
-
-      let rows;
-      try { rows = extractJSON(raw); }
-      catch (e) { throw new Error("JSON 解析失败，模型未按约定输出：" + e.message); }
+      const r = await callLLM(messages, {
+        onToken: (t, full) => {
+          if (streamBox) { streamBox.textContent = full; streamBox.scrollTop = streamBox.scrollHeight; }
+        },
+        onReset: () => { if (streamBox) streamBox.innerHTML = ""; }
+      });
+      if (r.error) throw new Error(errMsg(r));
+      const rows = r.content;
       if (!Array.isArray(rows)) throw new Error("返回不是数组");
 
       // 规整字段
-      rows = rows.map(r => {
+      const norm = rows.map(r2 => {
         const o = {};
-        EXCEL_HEADERS.forEach(h => { o[h] = (r[h] === undefined ? "" : r[h]); });
+        EXCEL_HEADERS.forEach(h => { o[h] = (r2[h] === undefined ? "" : r2[h]); });
         return o;
       });
-      log(`识别成功，共 ${rows.length} 行`);
-      renderTable(rows);
-      lastWorkbook = buildWorkbook(rows);
+      log(`识别成功，共 ${norm.length} 行`);
+      if (streamBox) streamBox.style.display = "none";
+      renderTable(norm);
+      lastWorkbook = buildWorkbook(norm);
       $("downloadBtn").disabled = false;
-      setStatus(`完成：识别 ${rows.length} 行，可下载`);
+      setStatus(`完成：识别 ${norm.length} 行，可下载`);
     } catch (err) {
       log("错误：" + err.message);
       setStatus("失败：" + err.message);

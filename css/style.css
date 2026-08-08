@@ -36,6 +36,9 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 .status { font-size: 13px; color: #666; }
 .log { font-size: 12px; color: #888; white-space: pre-wrap; max-height: 160px;
   overflow: auto; background: #fafafa; padding: 10px; border-radius: 8px; }
+.stream-box { font-size: 12px; color: #333; white-space: pre-wrap; word-break: break-all;
+  max-height: 220px; overflow: auto; background: #f0f7ff; padding: 10px; border-radius: 8px;
+  border: 1px dashed #90caf9; margin-bottom: 10px; }
 .table-wrap { margin-top: 12px; overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 12px; }
 th, td { border: 1px solid #e3e3e3; padding: 6px 8px; text-align: left; white-space: nowrap; }
