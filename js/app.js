@@ -5,6 +5,7 @@
   const status = $("status");
   const logEl = $("log");
   let lastWorkbook = null;
+  let stopCtl = null;  // 「停止」按钮的 AbortController
 
   // 模型预设（baseUrl 已含完整 /chat/completions 端点，调用时直接 fetch(baseUrl)）
   const MODEL_PRESETS = {
@@ -152,12 +153,18 @@
     let to = null;
     const arm = () => { if (to) clearTimeout(to); to = setTimeout(() => ctl.abort(), IDLE); };
     arm();
+    // 「停止」按钮联动：用户中止 → 同步 abort 本次请求
+    if (opts.signal) {
+      if (opts.signal.aborted) return { error: "stopped" };
+      opts.signal.addEventListener("abort", () => ctl.abort(), { once: true });
+    }
     const url = (cfg.proxy && !opts.direct) ? proxiedUrl(cfg.baseUrl, cfg.proxy) : cfg.baseUrl;
     let resp;
     try {
       resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.apiKey }, body: JSON.stringify(body), signal: ctl.signal });
     } catch (e) { if (to) clearTimeout(to); return { error: "net", msg: String(e) }; }
     if (to) clearTimeout(to);
+    arm();   // 修复盲区：响应头已到但正文首块未到时也保持计时（40s 无正文同样中断降级）
     if (!resp.ok) { let t = ""; try { t = await resp.text(); } catch (_) {} return { error: "http", status: resp.status, msg: (t || "").slice(0, 300) }; }
     if (stream) {
       try {
@@ -201,28 +208,33 @@
     return { content: c };
   }
 
-  // ——— 带自动降级的调用：主通道失败 → 按预设顺序切备用（无 Key 跳过）；末位带代理的通道再补一次直连兜底 ———
+  // ——— 带自动降级的调用：最多 MAX_ROUNDS 轮循环，任意一轮成功即返回；无 Key 跳过；「停止」可随时中止 ———
   async function callLLM(messages, opts) {
     opts = opts || {};
     const cur = $("preset").value;
     const order = [cur].concat(Object.keys(MODEL_PRESETS).filter(p => p !== cur));
-    let lastErr = null;
-    for (let i = 0; i < order.length; i++) {
-      const p = order[i];
-      const p0 = MODEL_PRESETS[p];
-      const apiKey = $(p0.key + "ApiKey").value.trim();
-      if (!apiKey) continue;
-      const cfg = Object.assign({}, p0, { apiKey });
-      if (i > 0) {
-        if (opts.onReset) opts.onReset();
-        log("⚠️ 主通道不可用，自动切换 " + cfg.name);
-      }
-      const attempts = ((i === order.length - 1) && !!cfg.proxy) ? [false, true] : [false];
-      for (const direct of attempts) {
-        const r = await callLLMOnce(cfg, messages, Object.assign({}, opts, { direct }));
-        if (!r.error) return r;
-        lastErr = r;
-        log("✗ " + cfg.name + (direct ? "（直连兜底）" : "") + " 失败：" + errMsg(r));
+    const usable = order.filter(p => $(MODEL_PRESETS[p].key + "ApiKey").value.trim());
+    if (!usable.length) return { error: "nokey" };
+    const MAX_ROUNDS = opts.maxRounds || 3;
+    let lastErr = null, first = true;
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+      for (const p of usable) {
+        if (opts.signal && opts.signal.aborted) return { error: "stopped" };
+        const p0 = MODEL_PRESETS[p];
+        const cfg = Object.assign({}, p0, { apiKey: $(p0.key + "ApiKey").value.trim() });
+        if (!first) {
+          if (opts.onReset) opts.onReset();
+          log((round > 0 ? "↻ 第 " + (round + 1) + " 轮 " : "↻ ") + "尝试 " + cfg.name);
+        }
+        first = false;
+        const attempts = cfg.proxy ? [false, true] : [false];
+        for (const direct of attempts) {
+          const r = await callLLMOnce(cfg, messages, Object.assign({}, opts, { direct }));
+          if (opts.signal && opts.signal.aborted) return { error: "stopped" };
+          if (!r.error) return r;
+          lastErr = r;
+          log("✗ " + cfg.name + (direct ? "（直连兜底）" : "") + " 失败：" + errMsg(r));
+        }
       }
     }
     return lastErr || { error: "nokey" };
@@ -233,6 +245,7 @@
     if (e.status === 403) return "无权限或账户余额不足（403）：glm-4.6v / Qwen3.5-35B-A3B 为付费模型，需账户有余额并已开通" + (e.msg ? "｜" + e.msg.slice(0, 120) : "");
     const hints = {
       nokey: "未配置可用的 API Key",
+      stopped: "已手动停止",
       net: "网络/代理失败（" + (e.msg || "Key 无效、代理不可达或浏览器拦截") + "）",
       http: "接口返回 " + (e.status || "") + "：" + (e.msg || ""),
       json: "模型未按约定输出 JSON（" + (e.msg || "") + "）",
@@ -259,6 +272,8 @@
     $("tableWrap").innerHTML = "";
     if (streamBox) { streamBox.style.display = "block"; streamBox.textContent = "等待模型输出…"; }
     $("runBtn").disabled = true;
+    stopCtl = new AbortController();
+    if ($("stopBtn")) $("stopBtn").disabled = false;
     setStatus("压缩图片中…");
 
     // 执行总耗时计时（点击开始 → 完成停表）
@@ -295,6 +310,7 @@
     try {
       const r = await callLLM(messages, {
         json: true,
+        signal: stopCtl.signal,
         onToken: (t, full) => {
           if (streamBox) { streamBox.textContent = full; streamBox.scrollTop = streamBox.scrollHeight; }
         },
@@ -323,7 +339,14 @@
       clearInterval(timer);
       tick();
       $("runBtn").disabled = false;
+      if ($("stopBtn")) $("stopBtn").disabled = true;
+      stopCtl = null;
     }
+  });
+
+  // 「停止」按钮：中止本轮识别（中断当前请求与后续循环切换）
+  if ($("stopBtn")) $("stopBtn").addEventListener("click", () => {
+    if (stopCtl) { stopCtl.abort(); setStatus("已停止，正在中止本轮…"); }
   });
 
   function renderTable(rows) {

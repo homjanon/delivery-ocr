@@ -32,6 +32,7 @@ input[type=file] { width: 100%; padding: 8px 0; font-size: 13px; }
 button { padding: 10px 18px; border: none; border-radius: 8px; font-size: 14px;
   font-weight: 600; cursor: pointer; }
 button.primary { background: #c23531; color: #fff; }
+button.stop { background: #78909c; color: #fff; }
 button:disabled { background: #ccc; cursor: not-allowed; }
 .status { font-size: 13px; color: #666; }
 .log { font-size: 12px; color: #888; white-space: pre-wrap; max-height: 160px;
