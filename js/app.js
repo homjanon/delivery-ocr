@@ -11,7 +11,8 @@
     zhipu: {
       name: "智谱 GLM-4.6v（视觉·免费·直连✅）",
       baseUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-      model: "glm-4.6v", key: "zhipu"
+      model: "glm-4.6v", key: "zhipu",
+      thinking: "disabled"
     },
 
     qwen35b: {
@@ -113,7 +114,8 @@
     const stream = !!opts.onToken;
     const body = { model: cfg.model, messages, temperature: 0 };
     body.max_tokens = 8192;
-    body.chat_template_kwargs = { enable_thinking: false };
+    if (cfg.thinking) body.thinking = { type: cfg.thinking };
+    else body.chat_template_kwargs = { enable_thinking: false };
     body.stream = stream;
     const ctl = new AbortController();
     const to = setTimeout(() => ctl.abort(), stream ? 120000 : 90000);
@@ -185,13 +187,15 @@
         const r = await callLLMOnce(cfg, messages, Object.assign({}, opts, { direct }));
         if (!r.error) return r;
         lastErr = r;
-        if (direct) log("代理通道失败，直连兜底也失败：" + (r.msg || r.error));
+        log("✗ " + cfg.name + (direct ? "（直连兜底）" : "") + " 失败：" + errMsg(r));
       }
     }
     return lastErr || { error: "nokey" };
   }
 
   function errMsg(e) {
+    if (e.status === 401) return "API Key 无效或已失效（401）：请到对应平台重新生成 Key 并填入本页（Agnes 旧测试 Key 已注销，务必用新建的 Key）" + (e.msg ? "｜" + e.msg.slice(0, 120) : "");
+    if (e.status === 403) return "无权限或账户余额不足（403）：glm-4.6v / Qwen3.5-35B-A3B 为付费模型，需账户有余额并已开通" + (e.msg ? "｜" + e.msg.slice(0, 120) : "");
     const hints = {
       nokey: "未配置可用的 API Key",
       net: "网络/代理失败（Key 无效、代理不可达或浏览器拦截）",
