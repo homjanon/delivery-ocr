@@ -122,7 +122,7 @@
     const url = (cfg.proxy && !opts.direct) ? proxiedUrl(cfg.baseUrl, cfg.proxy) : cfg.baseUrl;
     let resp;
     try {
-      resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.key }, body: JSON.stringify(body), signal: ctl.signal });
+      resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.apiKey }, body: JSON.stringify(body), signal: ctl.signal });
     } catch (e) { clearTimeout(to); return { error: "net", msg: String(e) }; }
     clearTimeout(to);
     if (!resp.ok) { let t = ""; try { t = await resp.text(); } catch (_) {} return { error: "http", status: resp.status, msg: (t || "").slice(0, 300) }; }
@@ -175,9 +175,10 @@
     let lastErr = null;
     for (let i = 0; i < order.length; i++) {
       const p = order[i];
-      const cfg = MODEL_PRESETS[p];
-      const apiKey = $(cfg.key + "ApiKey").value.trim();
+      const p0 = MODEL_PRESETS[p];
+      const apiKey = $(p0.key + "ApiKey").value.trim();
       if (!apiKey) continue;
+      const cfg = Object.assign({}, p0, { apiKey });
       if (i > 0) {
         if (opts.onReset) opts.onReset();
         log("⚠️ 主通道不可用，自动切换 " + cfg.name);
@@ -194,7 +195,7 @@
   }
 
   function errMsg(e) {
-    if (e.status === 401) return "API Key 无效或已失效（401）：请到对应平台重新生成 Key 并填入本页（Agnes 旧测试 Key 已注销，务必用新建的 Key）" + (e.msg ? "｜" + e.msg.slice(0, 120) : "");
+    if (e.status === 401) return "API Key 无效或已失效（401）：请检查本页对应 Key 框是否填入完整正确的 Key（前后无空格、格式完整）" + (e.msg ? "｜" + e.msg.slice(0, 120) : "");
     if (e.status === 403) return "无权限或账户余额不足（403）：glm-4.6v / Qwen3.5-35B-A3B 为付费模型，需账户有余额并已开通" + (e.msg ? "｜" + e.msg.slice(0, 120) : "");
     const hints = {
       nokey: "未配置可用的 API Key",
