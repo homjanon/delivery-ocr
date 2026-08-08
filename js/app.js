@@ -8,6 +8,13 @@
 
   // 模型预设（baseUrl 已含完整 /chat/completions 端点，调用时直接 fetch(baseUrl)）
   const MODEL_PRESETS = {
+    zhipu: {
+      name: "智谱 GLM-4.6v（视觉·直连✅）",
+      baseUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+      model: "glm-4.6v", key: "zhipu",
+      thinking: "disabled"
+    },
+
     qwen35b: {
       name: "硅基流动 Qwen3.5-35B-A3B（视觉·便宜·直连✅）",
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
@@ -32,8 +39,8 @@
   const savedPreset = localStorage.getItem("do_preset");
   $("preset").value = (savedPreset && MODEL_PRESETS[savedPreset]) ? savedPreset : "agnes";
 
-  // 恢复 API Key（持久化）：siliconflow / agnes
-  ["siliconflow", "agnes"].forEach(k => {
+  // 恢复 API Key（持久化）：zhipu / siliconflow / agnes
+  ["zhipu", "siliconflow", "agnes"].forEach(k => {
     const el = $(k + "ApiKey");
     el.value = localStorage.getItem("do_" + k + "Key") || "";
     el.addEventListener("input", () => localStorage.setItem("do_" + k + "Key", el.value));
@@ -139,9 +146,9 @@
     if (cfg.thinking) body.thinking = { type: cfg.thinking };
     else body.chat_template_kwargs = { enable_thinking: false };
     body.stream = stream;
-    // 空闲超时：流式每收到一块数据即重置计时，只有连续 IDLE ms 零数据（真卡死）才中断
+    // 空闲超时：流式 40s 内零数据（无任何思考/输出）即中断 → 触发降级；每收到一块数据即重置
     const ctl = new AbortController();
-    const IDLE = stream ? 120000 : 90000;
+    const IDLE = stream ? 40000 : 90000;
     let to = null;
     const arm = () => { if (to) clearTimeout(to); to = setTimeout(() => ctl.abort(), IDLE); };
     arm();
