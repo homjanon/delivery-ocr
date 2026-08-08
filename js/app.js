@@ -8,13 +8,6 @@
 
   // 模型预设（baseUrl 已含完整 /chat/completions 端点，调用时直接 fetch(baseUrl)）
   const MODEL_PRESETS = {
-    zhipu: {
-      name: "智谱 GLM-4.6v（视觉·免费·直连✅）",
-      baseUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-      model: "glm-4.6v", key: "zhipu",
-      thinking: "disabled"
-    },
-
     qwen35b: {
       name: "硅基流动 Qwen3.5-35B-A3B（视觉·便宜·直连✅）",
       baseUrl: "https://api.siliconflow.cn/v1/chat/completions",
@@ -35,12 +28,12 @@
   // 预设下拉变更即保存
   $("preset").addEventListener("change", () => localStorage.setItem("do_preset", $("preset").value));
 
-  // 恢复预设（默认智谱 GLM-4.6V-Flash）
+  // 恢复预设（默认 Agnes 2.0-Flash）
   const savedPreset = localStorage.getItem("do_preset");
-  $("preset").value = (savedPreset && MODEL_PRESETS[savedPreset]) ? savedPreset : "zhipu";
+  $("preset").value = (savedPreset && MODEL_PRESETS[savedPreset]) ? savedPreset : "agnes";
 
-  // 恢复 API Key（持久化）：zhipu / siliconflow
-  ["zhipu", "siliconflow", "agnes"].forEach(k => {
+  // 恢复 API Key（持久化）：siliconflow / agnes
+  ["siliconflow", "agnes"].forEach(k => {
     const el = $(k + "ApiKey");
     el.value = localStorage.getItem("do_" + k + "Key") || "";
     el.addEventListener("input", () => localStorage.setItem("do_" + k + "Key", el.value));
@@ -100,6 +93,18 @@
     }
   }
 
+  // 容错归一化：模型偶发输出 JSON 对象而非数组时，自动提取数组字段 / 包成单元素数组
+  function normalizeRows(v) {
+    if (Array.isArray(v)) return v;
+    if (v && typeof v === "object") {
+      for (const k of Object.keys(v)) {
+        if (Array.isArray(v[k])) return v[k];
+      }
+      return [v];
+    }
+    return null;
+  }
+
   // ——— CORS 代理（仅配置了 proxy 的预设使用）：代理?url=<目标> ———
   function proxiedUrl(base, proxy) {
     const p = (proxy || "").trim();
@@ -117,14 +122,18 @@
     if (cfg.thinking) body.thinking = { type: cfg.thinking };
     else body.chat_template_kwargs = { enable_thinking: false };
     body.stream = stream;
+    // 空闲超时：流式每收到一块数据即重置计时，只有连续 IDLE ms 零数据（真卡死）才中断
     const ctl = new AbortController();
-    const to = setTimeout(() => ctl.abort(), stream ? 120000 : 90000);
+    const IDLE = stream ? 120000 : 90000;
+    let to = null;
+    const arm = () => { if (to) clearTimeout(to); to = setTimeout(() => ctl.abort(), IDLE); };
+    arm();
     const url = (cfg.proxy && !opts.direct) ? proxiedUrl(cfg.baseUrl, cfg.proxy) : cfg.baseUrl;
     let resp;
     try {
       resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.apiKey }, body: JSON.stringify(body), signal: ctl.signal });
-    } catch (e) { clearTimeout(to); return { error: "net", msg: String(e) }; }
-    clearTimeout(to);
+    } catch (e) { if (to) clearTimeout(to); return { error: "net", msg: String(e) }; }
+    if (to) clearTimeout(to);
     if (!resp.ok) { let t = ""; try { t = await resp.text(); } catch (_) {} return { error: "http", status: resp.status, msg: (t || "").slice(0, 300) }; }
     if (stream) {
       try {
@@ -135,6 +144,7 @@
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
+          arm();
           buf += dec.decode(value, { stream: true });
           let idx;
           while ((idx = buf.indexOf("\n")) >= 0) {
@@ -199,7 +209,7 @@
     if (e.status === 403) return "无权限或账户余额不足（403）：glm-4.6v / Qwen3.5-35B-A3B 为付费模型，需账户有余额并已开通" + (e.msg ? "｜" + e.msg.slice(0, 120) : "");
     const hints = {
       nokey: "未配置可用的 API Key",
-      net: "网络/代理失败（Key 无效、代理不可达或浏览器拦截）",
+      net: "网络/代理失败（" + (e.msg || "Key 无效、代理不可达或浏览器拦截") + "）",
       http: "接口返回 " + (e.status || "") + "：" + (e.msg || ""),
       json: "模型未按约定输出 JSON（" + (e.msg || "") + "）",
       empty: "模型返回为空（可能服务繁忙/被限流）",
@@ -266,8 +276,8 @@
         onReset: () => { if (streamBox) streamBox.innerHTML = ""; }
       });
       if (r.error) throw new Error(errMsg(r));
-      const rows = r.content;
-      if (!Array.isArray(rows)) throw new Error("返回不是数组");
+      const rows = normalizeRows(r.content);
+      if (!rows) throw new Error("返回不是数组（模型输出格式异常，请重试或换通道）");
 
       // 规整字段
       const norm = rows.map(r2 => {
