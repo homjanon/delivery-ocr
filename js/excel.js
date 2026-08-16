@@ -9,12 +9,25 @@ function buildWorkbook(rows) {
   const aoa = [];
   aoa.push(EXCEL_HEADERS.slice());  // 第 1 行：表头
 
+  // 2026-08-05（兼容 2026/8/5）→ Excel 日期序列号；非法/非标准返回 null
+  function dateToSerial(s) {
+    const m = String(s).trim().match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+    if (!m) return null;
+    const y = +m[1], mo = +m[2], d = +m[3];
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+    return Math.floor((dt.getTime() - Date.UTC(1899, 11, 30)) / 86400000);
+  }
+
   rows.forEach(r => {
     aoa.push(EXCEL_HEADERS.map(h => {
       let v = r[h];
       if (h === "数量" || h === "单价" || h === "金额") {
         v = (v === undefined || v === null || v === "") ? 0 : Number(v);
         if (!isFinite(v)) v = 0;
+      } else if (h === "日期" && typeof v === "string" && v.trim()) {
+        const ser = dateToSerial(v);
+        if (ser !== null) v = ser;   // 转为真实日期序列号，下方统一设 yyyy-mm-dd 格式
       }
       return v === undefined ? "" : v;
     }));
@@ -28,6 +41,12 @@ function buildWorkbook(rows) {
   aoa.push(totalRow);
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
+  // 日期列固化为 yyyy-mm-dd：真实日期值，微信 / QQ / Excel / WPS 打开显示一致
+  const dateIdx = EXCEL_HEADERS.indexOf("日期");
+  for (let r = 1; r < aoa.length; r++) {
+    const cell = ws[XLSX.utils.encode_cell({ r, c: dateIdx })];
+    if (cell && cell.t === "n") cell.z = "yyyy-mm-dd";
+  }
   ws["!cols"] = EXCEL_HEADERS.map(() => ({ wch: 16 }));
   // 表头加粗（第 1 行，索引 0）
   for (let c = 0; c < EXCEL_HEADERS.length; c++) {
