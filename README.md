@@ -24,17 +24,18 @@
 ```
 
 ### 模型预设（网页版）
-页面下拉直接切换；**硅基流动、智谱浏览器直连（原生 CORS）；Agnes 默认经自有 Cloudflare 代理加速**：
+页面下拉直接切换；**三个模型均浏览器直连（原生 CORS，无需代理）**：
 
 | 预设 | Key 框 | 端点 | 视觉? | 费用 |
 |---|---|---|---|---|
-| **Agnes 2.0-Flash（默认）** | Agnes Key | `apihub.agnes-ai.com/v1/chat/completions` | ✅ | 免费（无限期·高峰排队） |
+| **Agnes 3.0-Flash（默认）** | Agnes Key | `apihub.agnes-ai.com/v1/chat/completions` | ✅ | 免费（512K 上下文·最大输出 64K） |
 | **硅基流动 Qwen3.5-35B-A3B** | 硅基流动 Key | `api.siliconflow.cn/v1/chat/completions` | ✅ | 付费·便宜 |
 | **智谱 GLM-4.6v** | 智谱 Key | `open.bigmodel.cn/api/paas/v4/chat/completions` | ✅ | 付费旗舰（需余额） |
 
-> 默认预设为 **Agnes 2.0-Flash**（免费无限期，高峰偶有排队）；**硅基流动 Qwen3.5-35B-A3B**、**智谱 GLM-4.6v**（付费旗舰）为备用。三个模型均关闭思考模式（`enable_thinking:false`）并设 `max_tokens:8192`，避免 JSON 被截断。
+> 默认预设为 **Agnes 3.0-Flash**（免费，512K）；**硅基流动 Qwen3.5-35B-A3B**、**智谱 GLM-4.6v**（付费旗舰）为备用。三个模型均关闭思考模式（`enable_thinking:false`）并设 `max_tokens:8192`，避免 JSON 被截断。
+> 🔄 **Agnes 升级（2026-09-19）**：原 `agnes-2.0-flash` 已被官方标记 **Deprecated（下线）**，本项目已迁移到 **`agnes-3.0-flash`**（同一 Base URL / 端点 / 参数结构，仅改 model 名；实测支持 base64 内联图 + SSE 流式）。官方文档推荐的迁移目标为 `agnes-2.5-flash`，3.0 若异常可退此档。
 > ⚡ **SSE 流式 + 超时降级（2026-08-08）**：识别改为流式输出（内容边生成边在「③ 识别结果预览」上方滚动显示，体感提速）；**空闲超时 40s**（**指"连续 40s 零数据"而非总时长上限**——一旦收到任何输出就重置计时，慢但持续吐字的批次不会被误切；只有 40s 内一点数据都没有——含"有响应头但无正文"的情况——才中断并自动切换下一个有 Key 的模型）；**最多 3 轮循环切换**（每个有 Key 的模型按顺序反复尝试，任意一轮成功即停，可点「停止」按钮随时中止）；模型偶发输出 JSON 对象而非数组时会自动归一化为数组。
-> 📊 **实测参考（2026-08-08）**：Agnes 2.0-Flash 最快（秒级出字）；智谱 GLM-4.6v 可用；硅基流动 Qwen3.5-35B-A3B 可用但偏慢（4 张图一批约 **2 分钟**，属正常，耐心等流式滚动即可）。
+> 📊 **实测参考**：Agnes 3.0/2.5 直连最快（约 3 秒出结果）；智谱 GLM-4.6v 可用；硅基流动 Qwen3.5-35B-A3B 可用但偏慢（4 张图一批约 2 分钟，属正常，耐心等流式滚动即可）。
 > 💡 **报错定位**：每个通道失败都会打印「✗ 通道名 失败：原因」；**401 = Key 无效/已注销**（需到平台重新生成并填入），**403 = 无权限/账户余额不足**（Qwen3.5-35B-A3B、GLM-4.6v 为付费模型，需账户有余额）。
 > 历史上曾内置「硅基流动 Qwen3.5-397B-A17B」「商汤 SenseNova」预设，已移除。
 
@@ -50,9 +51,9 @@
 - 推送后自动生效，无需构建
 
 ### 关于 CORS（重要）
-- **硅基流动** 实测支持浏览器直连：OPTIONS 预检返回 `Access-Control-Allow-Origin` 及 `Allow-Headers`（含 `Authorization`、`Content-Type`），浏览器可直接 `fetch`，**无需代理**。
-- **Agnes 默认走自有 Cloudflare 代理**（`https://proxy.hellohopo.dpdns.org/?url=<目标>`）加速；其原生端点 `apihub.agnes-ai.com` 实测也带 CORS 头（`Access-Control-Allow-Origin: *`），可作直连兜底。
-- **Agnes 端点域名注意**：必须用 `apihub.agnes-ai.com`（实测 OPTIONS 预检 `Access-Control-Allow-Origin: *`）。其另一域名 `api.agnes-ai.com` 预检返回 404、**无 CORS 头**，浏览器直连会失败，切勿使用。Agnes 2.0-Flash 实测**支持 base64 `data:` 内联图片**（与本项目发送方式一致），且免费无限期开放。
+- **硅基流动、智谱** 实测支持浏览器直连：OPTIONS 预检返回 `Access-Control-Allow-Origin` 及 `Allow-Headers`（含 `Authorization`、`Content-Type`），浏览器可直接 `fetch`，**无需代理**。
+- **Agnes 也改为直连（2026-09-19 起不再走代理）**：`apihub.agnes-ai.com` 预检实测返回 `Access-Control-Allow-Origin: *`，浏览器可直连。原先使用的自有 Cloudflare 代理 `proxy.hellohopo.dpdns.org` 对 Agnes 上游已出现 Cloudflare 限流（**429 / code 1015**，2.5 与 3.0 两代模型均**秒回**该错），故本项目弃用；该代理本身仍健康（`proxy→example.com` 返回 200），其他用途不受影响。
+- **Agnes 端点域名注意**：必须用 `apihub.agnes-ai.com`（实测 OPTIONS 预检 `Access-Control-Allow-Origin: *`）。其另一域名 `api.agnes-ai.com` 预检返回 404、**无 CORS 头**，浏览器直连会失败，切勿使用。Agnes 3.0-Flash 实测**支持 base64 `data:` 内联图片 + SSE 流式**（与本项目发送方式一致），512K 上下文、免费。
 - **商汤 SenseNova 不支持浏览器直连**：其 Token 端点 OPTIONS 预检返回 404，浏览器报 `Failed to fetch`，因此**网页版已移除商汤预设**。若需使用商汤，请改用 [`local/` 本地版](local/打包说明.md)（后端调用无 CORS 限制，商汤可接）。
 - 这是从 Cloudflare Workers（国内被墙）切换为国内厂商直连的根本原因：流程更简洁、零基础设施成本。
 

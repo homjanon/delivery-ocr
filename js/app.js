@@ -23,10 +23,9 @@
     },
 
     agnes: {
-      name: "Agnes 2.0-Flash（视觉·免费·代理加速✅）",
+      name: "Agnes 3.0-Flash（视觉·免费·直连✅）",
       baseUrl: "https://apihub.agnes-ai.com/v1/chat/completions",
-      model: "agnes-2.0-flash", key: "agnes",
-      proxy: "https://proxy.hellohopo.dpdns.org/"
+      model: "agnes-3.0-flash", key: "agnes"
     },
   };
 
@@ -36,7 +35,7 @@
   // 预设下拉变更即保存
   $("preset").addEventListener("change", () => localStorage.setItem("do_preset", $("preset").value));
 
-  // 恢复预设（默认 Agnes 2.0-Flash）
+  // 恢复预设（默认 Agnes 3.0-Flash）
   const savedPreset = localStorage.getItem("do_preset");
   $("preset").value = (savedPreset && MODEL_PRESETS[savedPreset]) ? savedPreset : "agnes";
 
